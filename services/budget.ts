@@ -1,7 +1,6 @@
 import { supabase } from './supabase';
 import { BudgetConfig, BudgetSummaryItem } from '../types';
 import { getSpentByCategory } from './transactions';
-import { CATEGORIES } from '../constants/categories';
 
 export async function getBudgetConfigs(month: string): Promise<BudgetConfig[]> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,7 +27,7 @@ export async function upsertBudget(month: string, category: string, budget: numb
   if (error) throw error;
 }
 
-export async function getBudgetSummary(month: string): Promise<BudgetSummaryItem[]> {
+export async function getBudgetSummary(month: string, userCategories: string[]): Promise<BudgetSummaryItem[]> {
   const [configs, spent] = await Promise.all([
     getBudgetConfigs(month),
     getSpentByCategory(month),
@@ -40,7 +39,7 @@ export async function getBudgetSummary(month: string): Promise<BudgetSummaryItem
   }
 
   const allCategories = new Set([
-    ...CATEGORIES,
+    ...userCategories,
     ...Object.keys(spent),
     ...Object.keys(budgetMap),
   ]);

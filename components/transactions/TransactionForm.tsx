@@ -1,46 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Modal, ScrollView, Switch, Alert,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
-import { CATEGORIES, PAYMENT_METHODS } from '../../constants/categories';
-import { TransactionInsert } from '../../types';
+import { Transaction, TransactionInsert } from '../../types';
+import { useUserConfigStore } from '../../store/userConfigStore';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onSubmit: (tx: Omit<TransactionInsert, 'week' | 'month'>) => Promise<void>;
+  initialValues?: Transaction;
 }
 
 function todayStr(): string {
   return new Date().toISOString().substring(0, 10);
 }
 
-export function TransactionForm({ visible, onClose, onSubmit }: Props) {
+export function TransactionForm({ visible, onClose, onSubmit, initialValues }: Props) {
+  const { categories, paymentMethods } = useUserConfigStore();
   const [date, setDate] = useState(todayStr());
-  const [category, setCategory] = useState<string>(CATEGORIES[0]);
+  const [category, setCategory] = useState<string>('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<string>(PAYMENT_METHODS[0]);
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [isFixed, setIsFixed] = useState(false);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const reset = () => {
-    setDate(todayStr());
-    setCategory(CATEGORIES[0]);
-    setDescription('');
-    setAmount('');
-    setPaymentMethod(PAYMENT_METHODS[0]);
-    setIsFixed(false);
-    setNotes('');
-  };
+  useEffect(() => {
+    if (!visible) return;
+    if (initialValues) {
+      setDate(initialValues.date);
+      setCategory(initialValues.category);
+      setDescription(initialValues.description ?? '');
+      setAmount(String(initialValues.amount));
+      setPaymentMethod(initialValues.payment_method ?? '');
+      setIsFixed(initialValues.is_fixed);
+      setNotes(initialValues.notes ?? '');
+    } else {
+      setDate(todayStr());
+      setCategory(categories[0] ?? '');
+      setDescription('');
+      setAmount('');
+      setPaymentMethod(paymentMethods[0] ?? '');
+      setIsFixed(false);
+      setNotes('');
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (categories.length && !category) setCategory(categories[0]);
+  }, [categories]);
+
+  useEffect(() => {
+    if (paymentMethods.length && !paymentMethod) setPaymentMethod(paymentMethods[0]);
+  }, [paymentMethods]);
 
   const handleSubmit = async () => {
     const amountNum = parseInt(amount.replace(/\D/g, ''), 10);
     if (!amountNum || amountNum <= 0) {
-      Alert.alert('Error', 'Enter a valid amount');
+      Alert.alert('Error', 'Ingresa un monto válido');
       return;
     }
     setSaving(true);
@@ -53,9 +74,8 @@ export function TransactionForm({ visible, onClose, onSubmit }: Props) {
         payment_method: paymentMethod,
         is_fixed: isFixed,
         notes: notes || null,
-        registered: false,
+        registered: initialValues?.registered ?? false,
       });
-      reset();
       onClose();
     } catch (err) {
       Alert.alert('Error', String(err));
@@ -64,22 +84,24 @@ export function TransactionForm({ visible, onClose, onSubmit }: Props) {
     }
   };
 
+  const isEditing = !!initialValues;
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose}>
-          <Text style={styles.cancel}>Cancel</Text>
+          <Text style={styles.cancel}>Cancelar</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>New expense</Text>
+        <Text style={styles.title}>{isEditing ? 'Editar gasto' : 'Nuevo gasto'}</Text>
         <TouchableOpacity onPress={handleSubmit} disabled={saving}>
           <Text style={[styles.save, saving && styles.disabled]}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Guardando…' : 'Guardar'}
           </Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
-        <Label>Date</Label>
+        <Label>Fecha</Label>
         <TextInput
           style={styles.input}
           value={date}
@@ -87,7 +109,7 @@ export function TransactionForm({ visible, onClose, onSubmit }: Props) {
           placeholder="YYYY-MM-DD"
         />
 
-        <Label>Amount (CLP)</Label>
+        <Label>Monto (CLP)</Label>
         <TextInput
           style={styles.input}
           value={amount}
@@ -96,9 +118,9 @@ export function TransactionForm({ visible, onClose, onSubmit }: Props) {
           keyboardType="numeric"
         />
 
-        <Label>Category</Label>
+        <Label>Categoría</Label>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <TouchableOpacity
               key={cat}
               style={[styles.chip, category === cat && styles.chipActive]}
@@ -111,17 +133,17 @@ export function TransactionForm({ visible, onClose, onSubmit }: Props) {
           ))}
         </ScrollView>
 
-        <Label>Description</Label>
+        <Label>Descripción</Label>
         <TextInput
           style={styles.input}
           value={description}
           onChangeText={setDescription}
-          placeholder="Optional"
+          placeholder="Opcional"
         />
 
-        <Label>Payment method</Label>
+        <Label>Método de pago</Label>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
-          {PAYMENT_METHODS.map((m) => (
+          {paymentMethods.map((m) => (
             <TouchableOpacity
               key={m}
               style={[styles.chip, paymentMethod === m && styles.chipActive]}
@@ -133,16 +155,16 @@ export function TransactionForm({ visible, onClose, onSubmit }: Props) {
         </ScrollView>
 
         <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Fixed expense</Text>
+          <Text style={styles.switchLabel}>Gasto fijo</Text>
           <Switch value={isFixed} onValueChange={setIsFixed} trackColor={{ true: Colors.primary }} />
         </View>
 
-        <Label>Notes</Label>
+        <Label>Notas</Label>
         <TextInput
           style={[styles.input, styles.multiline]}
           value={notes}
           onChangeText={setNotes}
-          placeholder="Optional"
+          placeholder="Opcional"
           multiline
           numberOfLines={3}
         />

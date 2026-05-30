@@ -6,6 +6,7 @@ import { CATEGORY_COLORS } from '../../constants/categories';
 
 interface Props {
   transaction: Transaction;
+  onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
 }
 
@@ -18,18 +19,27 @@ function formatDay(date: string): string {
   return `${parseInt(day, 10)}`;
 }
 
-export function TransactionCard({ transaction, onDelete }: Props) {
+export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
   const categoryColor = CATEGORY_COLORS[transaction.category] ?? Colors.textMuted;
 
-  const handleDelete = () => {
-    Alert.alert('Delete expense', 'Remove this record?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => onDelete(transaction.id) },
+  const handlePress = () => {
+    Alert.alert(transaction.category, transaction.description ?? undefined, [
+      { text: 'Editar', onPress: () => onEdit(transaction) },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('Eliminar gasto', '¿Eliminar este registro?', [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Eliminar', style: 'destructive', onPress: () => onDelete(transaction.id) },
+          ]),
+      },
+      { text: 'Cancelar', style: 'cancel' },
     ]);
   };
 
   return (
-    <TouchableOpacity style={styles.card} onLongPress={handleDelete} activeOpacity={0.8}>
+    <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.8}>
       <View style={[styles.categoryDot, { backgroundColor: categoryColor }]} />
       <View style={styles.info}>
         <Text style={styles.category}>{transaction.category}</Text>
@@ -37,12 +47,12 @@ export function TransactionCard({ transaction, onDelete }: Props) {
           <Text style={styles.description} numberOfLines={1}>{transaction.description}</Text>
         ) : null}
         <View style={styles.meta}>
-          <Text style={styles.metaText}>Day {formatDay(transaction.date)}</Text>
+          <Text style={styles.metaText}>Día {formatDay(transaction.date)}</Text>
           {transaction.payment_method ? (
             <Text style={styles.metaText}> · {transaction.payment_method}</Text>
           ) : null}
           {transaction.is_fixed ? (
-            <Text style={styles.fixed}> · Fixed</Text>
+            <Text style={styles.fixed}> · Fijo</Text>
           ) : null}
         </View>
       </View>

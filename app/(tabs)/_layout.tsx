@@ -1,8 +1,14 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { useUserConfigStore } from '../../store/userConfigStore';
 
 export default function TabLayout() {
+  const fetchConfig = useUserConfigStore((s) => s.fetch);
+
+  useEffect(() => { fetchConfig(); }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -27,6 +33,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="deudas"
         options={{ title: 'Deudas', tabBarIcon: () => <Text style={{ fontSize: 20 }}>🤝</Text> }}
+      />
+      <Tabs.Screen
+        name="ajustes"
+        options={{ title: 'Ajustes', tabBarIcon: () => <Text style={{ fontSize: 20 }}>⚙️</Text> }}
       />
     </Tabs>
   );

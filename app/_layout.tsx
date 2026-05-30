@@ -5,6 +5,7 @@ import { supabase } from '../services/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Colors } from '../constants/colors';
 
 export default function RootLayout() {
@@ -31,19 +32,21 @@ export default function RootLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
-        <ActivityIndicator color={Colors.primary} />
-      </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background }}>
+          <ActivityIndicator color={Colors.primary} />
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)/login" />
         <Stack.Screen name="(tabs)" />
       </Stack>
-    </>
+    </GestureHandlerRootView>
   );
 }

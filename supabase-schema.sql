@@ -1,5 +1,16 @@
 -- Run this in the Supabase SQL editor (project > SQL Editor > New query)
 
+CREATE TABLE user_config (
+  user_id UUID REFERENCES auth.users PRIMARY KEY,
+  categories TEXT[] NOT NULL DEFAULT '{}',
+  payment_methods TEXT[] NOT NULL DEFAULT '{}'
+);
+
+ALTER TABLE user_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own config" ON user_config
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
 CREATE TABLE transactions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,

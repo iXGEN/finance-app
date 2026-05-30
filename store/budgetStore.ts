@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { BudgetSummaryItem } from '../types';
 import { getBudgetSummary, upsertBudget } from '../services/budget';
+import { useUserConfigStore } from './userConfigStore';
 
 interface BudgetState {
   summary: BudgetSummaryItem[];
@@ -16,7 +17,8 @@ export const useBudgetStore = create<BudgetState>((set) => ({
   fetchSummary: async (month) => {
     set({ loading: true });
     try {
-      const data = await getBudgetSummary(month);
+      const { categories } = useUserConfigStore.getState();
+      const data = await getBudgetSummary(month, categories);
       set({ summary: data, loading: false });
     } catch {
       set({ loading: false });
@@ -25,7 +27,8 @@ export const useBudgetStore = create<BudgetState>((set) => ({
 
   upsertBudget: async (month, category, budget) => {
     await upsertBudget(month, category, budget);
-    const data = await getBudgetSummary(month);
+    const { categories } = useUserConfigStore.getState();
+    const data = await getBudgetSummary(month, categories);
     set({ summary: data });
   },
 }));

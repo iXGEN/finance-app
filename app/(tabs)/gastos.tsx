@@ -6,15 +6,37 @@ import { TransactionList } from '../../components/transactions/TransactionList';
 import { TransactionForm } from '../../components/transactions/TransactionForm';
 import { useTransactionsStore } from '../../store/transactionsStore';
 import { Colors } from '../../constants/colors';
+import { Transaction } from '../../types';
 
 export default function ExpensesScreen() {
   const {
     transactions, loading, selectedMonth,
-    setSelectedMonth, fetchTransactions, addTransaction, deleteTransaction,
+    setSelectedMonth, fetchTransactions,
+    addTransaction, updateTransaction, deleteTransaction,
   } = useTransactionsStore();
+
   const [formVisible, setFormVisible] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
 
   useEffect(() => { fetchTransactions(); }, []);
+
+  const handleEdit = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setFormVisible(true);
+  };
+
+  const handleClose = () => {
+    setFormVisible(false);
+    setEditingTransaction(undefined);
+  };
+
+  const handleSubmit = async (data: Parameters<typeof addTransaction>[0]) => {
+    if (editingTransaction) {
+      await updateTransaction(editingTransaction.id, data);
+    } else {
+      await addTransaction(data);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -22,6 +44,7 @@ export default function ExpensesScreen() {
       <TransactionList
         transactions={transactions}
         loading={loading}
+        onEdit={handleEdit}
         onDelete={deleteTransaction}
       />
       <TouchableOpacity style={styles.fab} onPress={() => setFormVisible(true)}>
@@ -29,8 +52,9 @@ export default function ExpensesScreen() {
       </TouchableOpacity>
       <TransactionForm
         visible={formVisible}
-        onClose={() => setFormVisible(false)}
-        onSubmit={(tx) => addTransaction(tx).then(() => {})}
+        onClose={handleClose}
+        onSubmit={handleSubmit}
+        initialValues={editingTransaction}
       />
     </SafeAreaView>
   );

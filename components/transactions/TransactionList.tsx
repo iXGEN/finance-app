@@ -7,6 +7,7 @@ import { Colors } from '../../constants/colors';
 interface Props {
   transactions: Transaction[];
   loading: boolean;
+  onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
 }
 
@@ -22,7 +23,7 @@ function groupByWeek(transactions: Transaction[]): { week: number; items: Transa
     .map(([week, items]) => ({ week, items }));
 }
 
-export function TransactionList({ transactions, loading, onDelete }: Props) {
+export function TransactionList({ transactions, loading, onEdit, onDelete }: Props) {
   if (loading) {
     return (
       <View style={styles.center}>
@@ -61,7 +62,7 @@ export function TransactionList({ transactions, loading, onDelete }: Props) {
             </Text>
           </View>
           {group.items.map((tx) => (
-            <TransactionCard key={tx.id} transaction={tx} onDelete={onDelete} />
+            <TransactionCard key={tx.id} transaction={tx} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </View>
       )}

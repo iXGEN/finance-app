@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Transaction } from '../types';
-import { getTransactions, addTransaction, deleteTransaction } from '../services/transactions';
+import { Transaction, TransactionInsert } from '../types';
+import { getTransactions, addTransaction, updateTransaction, deleteTransaction } from '../services/transactions';
 
 interface TransactionsState {
   transactions: Transaction[];
@@ -10,6 +10,7 @@ interface TransactionsState {
   setSelectedMonth: (month: string) => void;
   fetchTransactions: () => Promise<void>;
   addTransaction: (tx: Parameters<typeof addTransaction>[0]) => Promise<Transaction>;
+  updateTransaction: (id: string, updates: Partial<Omit<TransactionInsert, 'week' | 'month'>>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -43,6 +44,13 @@ export const useTransactionsStore = create<TransactionsState>((set, get) => ({
     const newTx = await addTransaction(tx);
     set((state) => ({ transactions: [newTx, ...state.transactions] }));
     return newTx;
+  },
+
+  updateTransaction: async (id, updates) => {
+    const updated = await updateTransaction(id, updates);
+    set((state) => ({
+      transactions: state.transactions.map((t) => (t.id === id ? updated : t)),
+    }));
   },
 
   deleteTransaction: async (id) => {

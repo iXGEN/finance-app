@@ -51,9 +51,15 @@ export async function addTransaction(tx: Omit<TransactionInsert, 'week' | 'month
 }
 
 export async function updateTransaction(id: string, updates: Partial<TransactionInsert>): Promise<Transaction> {
+  const payload: Partial<TransactionInsert> = { ...updates };
+  if (updates.date) {
+    payload.week = getWeekNumber(updates.date);
+    payload.month = getMonth(updates.date);
+  }
+
   const { data, error } = await supabase
     .from('transactions')
-    .update(updates)
+    .update(payload)
     .eq('id', id)
     .select()
     .single();
