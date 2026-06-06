@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { Transaction } from '../../types';
 import { Colors } from '../../constants/colors';
 import { CATEGORY_COLORS } from '../../constants/categories';
@@ -10,17 +10,19 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
+const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+
 function formatAmount(amount: number): string {
   return `$${amount.toLocaleString('es-CL')}`;
 }
 
 function formatDay(date: string): string {
   const [, , day] = date.split('-');
-  return `${parseInt(day, 10)}`;
+  return parseInt(day, 10).toString();
 }
 
 export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
-  const categoryColor = CATEGORY_COLORS[transaction.category] ?? Colors.textMuted;
+  const categoryColor = CATEGORY_COLORS[transaction.category] ?? Colors.textSecondary;
 
   const handlePress = () => {
     Alert.alert(transaction.category, transaction.description ?? undefined, [
@@ -39,24 +41,28 @@ export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.8}>
-      <View style={[styles.categoryDot, { backgroundColor: categoryColor }]} />
+    <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.7}>
+      <View style={[styles.colorBar, { backgroundColor: categoryColor }]} />
+      <View style={styles.dayBadge}>
+        <Text style={styles.dayText}>{formatDay(transaction.date)}</Text>
+      </View>
       <View style={styles.info}>
-        <Text style={styles.category}>{transaction.category}</Text>
+        <Text style={styles.category} numberOfLines={1}>{transaction.category}</Text>
         {transaction.description ? (
           <Text style={styles.description} numberOfLines={1}>{transaction.description}</Text>
         ) : null}
         <View style={styles.meta}>
-          <Text style={styles.metaText}>Día {formatDay(transaction.date)}</Text>
           {transaction.payment_method ? (
-            <Text style={styles.metaText}> · {transaction.payment_method}</Text>
+            <Text style={styles.metaText}>{transaction.payment_method}</Text>
           ) : null}
           {transaction.is_fixed ? (
-            <Text style={styles.fixed}> · Fijo</Text>
+            <View style={styles.fixedBadge}>
+              <Text style={styles.fixedText}>FIJO</Text>
+            </View>
           ) : null}
         </View>
       </View>
-      <Text style={styles.amount}>{formatAmount(transaction.amount)}</Text>
+      <Text style={[styles.amount, { color: categoryColor }]}>{formatAmount(transaction.amount)}</Text>
     </TouchableOpacity>
   );
 }
@@ -66,16 +72,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingRight: 16,
+    paddingVertical: 13,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  categoryDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  colorBar: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 2,
     marginRight: 12,
+    marginLeft: 0,
+    opacity: 0.9,
+  },
+  dayBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  dayText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    fontVariant: ['tabular-nums'],
   },
   info: {
     flex: 1,
@@ -84,28 +107,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.text,
+    letterSpacing: 0.1,
   },
   description: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   meta: {
     flexDirection: 'row',
-    marginTop: 2,
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textMuted,
+    letterSpacing: 0.2,
   },
-  fixed: {
-    fontSize: 12,
+  fixedBadge: {
+    backgroundColor: Colors.primaryDim,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  fixedText: {
+    fontSize: 9,
+    fontWeight: '800',
     color: Colors.primary,
+    letterSpacing: 0.8,
   },
   amount: {
     fontSize: 15,
     fontWeight: '700',
-    color: Colors.text,
     marginLeft: 8,
+    fontFamily: MONO,
+    fontVariant: ['tabular-nums'],
   },
 });

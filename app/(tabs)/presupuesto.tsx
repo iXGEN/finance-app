@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MonthPicker } from '../../components/shared/MonthPicker';
 import { BudgetCard } from '../../components/budget/BudgetCard';
 import { useBudgetStore } from '../../store/budgetStore';
 import { Colors } from '../../constants/colors';
+
+const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export default function BudgetScreen() {
   const { summary, loading, fetchSummary, upsertBudget } = useBudgetStore();
@@ -14,6 +16,8 @@ export default function BudgetScreen() {
 
   const totalSpent = summary.reduce((s, i) => s + i.spent, 0);
   const totalBudget = summary.reduce((s, i) => s + i.budget, 0);
+  const available = totalBudget - totalSpent;
+  const over = totalBudget > 0 && totalSpent > totalBudget;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -22,19 +26,21 @@ export default function BudgetScreen() {
       {totalBudget > 0 && (
         <View style={styles.totals}>
           <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Spent</Text>
-            <Text style={[styles.totalValue, totalSpent > totalBudget && { color: Colors.danger }]}>
+            <Text style={styles.totalLabel}>Gastado</Text>
+            <Text style={[styles.totalValue, over && { color: Colors.danger }]}>
               ${totalSpent.toLocaleString('es-CL')}
             </Text>
           </View>
+          <View style={styles.totalDivider} />
           <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Budget</Text>
+            <Text style={styles.totalLabel}>Presupuesto</Text>
             <Text style={styles.totalValue}>${totalBudget.toLocaleString('es-CL')}</Text>
           </View>
+          <View style={styles.totalDivider} />
           <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Available</Text>
-            <Text style={[styles.totalValue, { color: totalBudget - totalSpent >= 0 ? Colors.success : Colors.danger }]}>
-              ${(totalBudget - totalSpent).toLocaleString('es-CL')}
+            <Text style={styles.totalLabel}>Disponible</Text>
+            <Text style={[styles.totalValue, { color: available >= 0 ? Colors.primary : Colors.danger }]}>
+              ${Math.abs(available).toLocaleString('es-CL')}
             </Text>
           </View>
         </View>
@@ -53,9 +59,9 @@ export default function BudgetScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={styles.empty}>
-                No data this month.{'\n'}Add expenses or tap a category to set a budget.
-              </Text>
+              <Text style={styles.emptyIcon}>◎</Text>
+              <Text style={styles.emptyTitle}>Sin datos este mes</Text>
+              <Text style={styles.emptySubtitle}>Toca una categoría para asignar un presupuesto</Text>
             </View>
           }
         />
@@ -74,33 +80,53 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   totalItem: {
     flex: 1,
     alignItems: 'center',
+    gap: 4,
+  },
+  totalDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
   },
   totalLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    fontWeight: '600',
   },
   totalValue: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
+    fontFamily: MONO,
+    fontVariant: ['tabular-nums'],
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
+    gap: 6,
   },
-  empty: {
+  emptyIcon: {
+    fontSize: 36,
+    color: Colors.textMuted,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  emptySubtitle: {
     color: Colors.textMuted,
     textAlign: 'center',
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 20,
   },
 });

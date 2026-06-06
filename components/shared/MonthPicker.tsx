@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Colors } from '../../constants/colors';
 
 interface Props {
@@ -22,11 +22,11 @@ function addMonths(mes: string, delta: number): string {
 export function MonthPicker({ value, onChange }: Props) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => onChange(addMonths(value, -1))} style={styles.btn}>
+      <TouchableOpacity onPress={() => onChange(addMonths(value, -1))} style={styles.btn} hitSlop={8}>
         <Text style={styles.arrow}>‹</Text>
       </TouchableOpacity>
       <Text style={styles.label}>{formatDisplay(value)}</Text>
-      <TouchableOpacity onPress={() => onChange(addMonths(value, 1))} style={styles.btn}>
+      <TouchableOpacity onPress={() => onChange(addMonths(value, 1))} style={styles.btn} hitSlop={8}>
         <Text style={styles.arrow}>›</Text>
       </TouchableOpacity>
     </View>
@@ -37,27 +37,31 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   btn: {
-    paddingHorizontal: 20,
-    paddingVertical: 4,
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   arrow: {
-    fontSize: 28,
+    fontSize: 30,
     color: Colors.primary,
-    lineHeight: 32,
+    lineHeight: 34,
+    fontWeight: '300',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.text,
-    width: 180,
-    textAlign: 'center',
     textTransform: 'capitalize',
+    letterSpacing: 0.3,
+    flex: 1,
+    textAlign: 'center',
   },
 });

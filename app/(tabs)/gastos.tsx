@@ -47,7 +47,7 @@ export default function ExpensesScreen() {
         onEdit={handleEdit}
         onDelete={deleteTransaction}
       />
-      <TouchableOpacity style={styles.fab} onPress={() => setFormVisible(true)}>
+      <TouchableOpacity style={styles.fab} onPress={() => setFormVisible(true)} activeOpacity={0.85}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
       <TransactionForm
@@ -69,21 +69,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 8,
   },
   fabText: {
-    color: '#fff',
-    fontSize: 28,
-    lineHeight: 32,
+    color: Colors.background,
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '300',
   },
 });

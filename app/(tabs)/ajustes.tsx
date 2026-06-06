@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, ActivityIndicator,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+  NestableScrollContainer,
+  NestableDraggableFlatList,
+} from 'react-native-draggable-flatlist';
 import { Colors } from '../../constants/colors';
 import { useUserConfigStore } from '../../store/userConfigStore';
 
@@ -132,6 +137,7 @@ export default function AjustesScreen() {
               autoFocus
               onSubmitEditing={handleSaveRenameCategory}
               returnKeyType="done"
+              placeholderTextColor={Colors.textMuted}
             />
           ) : (
             <TouchableOpacity
@@ -173,6 +179,7 @@ export default function AjustesScreen() {
               autoFocus
               onSubmitEditing={handleSaveRenamePayment}
               returnKeyType="done"
+              placeholderTextColor={Colors.textMuted}
             />
           ) : (
             <TouchableOpacity
@@ -203,16 +210,14 @@ export default function AjustesScreen() {
         <Text style={styles.headerTitle}>Ajustes</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        {/* CATEGORÍAS */}
+      <NestableScrollContainer contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.sectionTitle}>Categorías</Text>
         <View style={styles.section}>
-          <DraggableFlatList
+          <NestableDraggableFlatList
             data={categories}
             keyExtractor={(item) => item}
             onDragEnd={({ data }) => reorderCategories(data)}
             renderItem={renderCategoryItem}
-            scrollEnabled={false}
             activationDistance={10}
           />
           {addingCat ? (
@@ -228,7 +233,7 @@ export default function AjustesScreen() {
               />
               <TouchableOpacity onPress={handleAddCategory} disabled={savingCat} style={styles.confirmBtn}>
                 {savingCat
-                  ? <ActivityIndicator size="small" color="#fff" />
+                  ? <ActivityIndicator size="small" color={Colors.background} />
                   : <Text style={styles.confirmBtnText}>Agregar</Text>
                 }
               </TouchableOpacity>
@@ -243,15 +248,13 @@ export default function AjustesScreen() {
           )}
         </View>
 
-        {/* MÉTODOS DE PAGO */}
         <Text style={styles.sectionTitle}>Métodos de pago</Text>
         <View style={styles.section}>
-          <DraggableFlatList
+          <NestableDraggableFlatList
             data={paymentMethods}
             keyExtractor={(item) => item}
             onDragEnd={({ data }) => reorderPaymentMethods(data)}
             renderItem={renderPaymentItem}
-            scrollEnabled={false}
             activationDistance={10}
           />
           {addingPay ? (
@@ -267,7 +270,7 @@ export default function AjustesScreen() {
               />
               <TouchableOpacity onPress={handleAddPayment} disabled={savingPay} style={styles.confirmBtn}>
                 {savingPay
-                  ? <ActivityIndicator size="small" color="#fff" />
+                  ? <ActivityIndicator size="small" color={Colors.background} />
                   : <Text style={styles.confirmBtnText}>Agregar</Text>
                 }
               </TouchableOpacity>
@@ -283,7 +286,7 @@ export default function AjustesScreen() {
         </View>
 
         <View style={{ height: 40 }} />
-      </ScrollView>
+      </NestableScrollContainer>
     </SafeAreaView>
   );
 }
@@ -294,33 +297,35 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: Colors.surface,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
+    letterSpacing: 0.2,
   },
   body: {
     padding: 16,
     paddingBottom: 40,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: Colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginTop: 24,
-    marginBottom: 8,
-    marginLeft: 4,
+    letterSpacing: 1,
+    marginTop: 28,
+    marginBottom: 10,
+    marginLeft: 2,
   },
   section: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: 'hidden',
@@ -328,19 +333,19 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingRight: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     backgroundColor: Colors.surface,
   },
   rowActive: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surfaceActive,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   dragHandleWrap: {
     paddingHorizontal: 14,
@@ -365,6 +370,7 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 15,
     color: Colors.text,
+    fontWeight: '400',
   },
   editInput: {
     flex: 1,
@@ -372,10 +378,10 @@ const styles = StyleSheet.create({
     color: Colors.text,
     borderWidth: 1,
     borderColor: Colors.primary,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: Colors.background,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: Colors.surfaceElevated,
   },
   confirmSmall: {
     marginLeft: 10,
@@ -391,15 +397,15 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     fontSize: 14,
-    color: Colors.danger,
+    color: Colors.textMuted,
     fontWeight: '600',
   },
   addTrigger: {
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 16,
   },
   addTriggerText: {
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.primary,
     fontWeight: '600',
   },
@@ -407,34 +413,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     gap: 8,
   },
   addInput: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surfaceElevated,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
     fontSize: 14,
     color: Colors.text,
   },
   confirmBtn: {
     backgroundColor: Colors.primary,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 8,
-    minWidth: 72,
+    minWidth: 76,
     alignItems: 'center',
   },
   confirmBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
+    color: Colors.background,
+    fontWeight: '800',
+    fontSize: 13,
   },
   cancelBtn: {
     padding: 8,

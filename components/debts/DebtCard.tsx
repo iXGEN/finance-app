@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { Debt } from '../../types';
 import { Colors } from '../../constants/colors';
 
@@ -9,20 +9,24 @@ interface Props {
   onDelete: (id: string) => void;
 }
 
+const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+
 export function DebtCard({ debt, onMarkPaid, onDelete }: Props) {
   const positive = debt.amount > 0;
+  const accentColor = positive ? Colors.success : Colors.danger;
+  const accentDim = positive ? Colors.successDim : Colors.dangerDim;
 
   const handleLongPress = () => {
-    Alert.alert('Options', debt.description ?? debt.person, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Mark as paid', onPress: () => onMarkPaid(debt.id) },
-      { text: 'Delete', style: 'destructive', onPress: () => onDelete(debt.id) },
+    Alert.alert('Opciones', debt.description ?? debt.person, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Marcar como pagado', onPress: () => onMarkPaid(debt.id) },
+      { text: 'Eliminar', style: 'destructive', onPress: () => onDelete(debt.id) },
     ]);
   };
 
   return (
-    <TouchableOpacity style={styles.card} onLongPress={handleLongPress} activeOpacity={0.8}>
-      <View style={[styles.indicator, { backgroundColor: positive ? Colors.success : Colors.danger }]} />
+    <TouchableOpacity style={styles.card} onLongPress={handleLongPress} activeOpacity={0.75}>
+      <View style={[styles.indicator, { backgroundColor: accentColor }]} />
       <View style={styles.info}>
         <Text style={styles.person}>{debt.person}</Text>
         {debt.description ? (
@@ -30,11 +34,13 @@ export function DebtCard({ debt, onMarkPaid, onDelete }: Props) {
         ) : null}
         <Text style={styles.date}>{debt.date}</Text>
       </View>
-      <View style={styles.right}>
-        <Text style={[styles.amount, { color: positive ? Colors.success : Colors.danger }]}>
+      <View style={[styles.amountBadge, { backgroundColor: accentDim }]}>
+        <Text style={[styles.direction, { color: accentColor }]}>
+          {positive ? 'te deben' : 'debes'}
+        </Text>
+        <Text style={[styles.amount, { color: accentColor, fontFamily: MONO }]}>
           {positive ? '+' : '−'}${Math.abs(debt.amount).toLocaleString('es-CL')}
         </Text>
-        <Text style={styles.direction}>{positive ? 'they owe you' : 'you owe'}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -45,16 +51,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    paddingHorizontal: 16,
+    paddingRight: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
   indicator: {
-    width: 4,
-    height: 40,
+    width: 3,
+    alignSelf: 'stretch',
     borderRadius: 2,
-    marginRight: 12,
+    marginRight: 14,
   },
   info: {
     flex: 1,
@@ -70,20 +76,26 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   date: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textMuted,
-    marginTop: 2,
+    marginTop: 3,
   },
-  right: {
+  amountBadge: {
     alignItems: 'flex-end',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  direction: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   amount: {
     fontSize: 16,
     fontWeight: '700',
-  },
-  direction: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
 });

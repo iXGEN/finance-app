@@ -24,10 +24,14 @@ export type ConversationMessage = {
 };
 
 function toGeminiHistory(history: ConversationMessage[]): Content[] {
-  return history.map((m) => ({
+  const mapped = history.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }));
+  // Gemini requires history to start with 'user'
+  const firstUser = mapped.findIndex((m) => m.role === 'user');
+  if (firstUser === -1) return [];
+  return firstUser > 0 ? mapped.slice(firstUser) : mapped;
 }
 
 export async function sendMessage(
@@ -35,13 +39,21 @@ export async function sendMessage(
   history: ConversationMessage[],
   onUpdate?: (text: string) => void,
 ): Promise<string> {
+  if (!process.env.EXPO_PUBLIC_GOOGLE_API_KEY) {
+    throw new Error('EXPO_PUBLIC_GOOGLE_API_KEY no está definida. Reinicia el servidor de Expo después de agregar la variable al .env.');
+  }
+
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
     systemInstruction: SYSTEM_PROMPT,
     tools: [{ functionDeclarations: toolDefinitions }],
   });
 
-  const chat = model.startChat({ history: toGeminiHistory(history) });
+  const geminiHistory = toGeminiHistory(history);
+  console.log('[Gemini] history:', JSON.stringify(geminiHistory, null, 2));
+  console.log('[Gemini] userMessage:', userMessage);
+
+  const chat = model.startChat({ history: geminiHistory });
 
   let result = await chat.sendMessage(userMessage);
   let response = result.response;

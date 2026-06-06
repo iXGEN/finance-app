@@ -66,10 +66,12 @@ export function ChatInterface() {
         fetchDebts(),
       ]);
     } catch (err) {
+      console.error('[ChatInterface] AI error:', err);
+      const errMsg = err instanceof Error ? err.message : String(err);
       setMessages((prev) =>
         prev.map((m) =>
           m.isLoading
-            ? { ...m, content: `Error: ${String(err)}`, isLoading: false }
+            ? { ...m, content: `Error: ${errMsg}`, isLoading: false }
             : m,
         ),
       );

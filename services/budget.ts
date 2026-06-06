@@ -44,12 +44,21 @@ export async function getBudgetSummary(month: string, userCategories: string[]):
     ...Object.keys(budgetMap),
   ]);
 
+  const categoryOrder = new Map(userCategories.map((c, i) => [c, i]));
+
   return Array.from(allCategories)
     .map((category) => ({
       category,
       budget: budgetMap[category] ?? 0,
       spent: spent[category] ?? 0,
     }))
-    .filter((item) => item.budget > 0 || item.spent > 0)
-    .sort((a, b) => b.spent - a.spent);
+    .sort((a, b) => {
+      const hasActivityA = a.budget > 0 || a.spent > 0;
+      const hasActivityB = b.budget > 0 || b.spent > 0;
+      if (hasActivityA !== hasActivityB) return hasActivityA ? -1 : 1;
+      if (a.spent !== b.spent) return b.spent - a.spent;
+      const orderA = categoryOrder.get(a.category) ?? 999;
+      const orderB = categoryOrder.get(b.category) ?? 999;
+      return orderA - orderB;
+    });
 }

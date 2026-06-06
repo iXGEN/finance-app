@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Transaction } from '../../types';
 import { TransactionCard } from './TransactionCard';
 import { Colors } from '../../constants/colors';
@@ -10,6 +10,8 @@ interface Props {
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
 }
+
+const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 function groupByWeek(transactions: Transaction[]): { week: number; items: Transaction[] }[] {
   const map = new Map<number, Transaction[]>();
@@ -35,7 +37,9 @@ export function TransactionList({ transactions, loading, onEdit, onDelete }: Pro
   if (transactions.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.empty}>No expenses this month</Text>
+        <Text style={styles.emptyIcon}>◎</Text>
+        <Text style={styles.emptyTitle}>Sin gastos</Text>
+        <Text style={styles.emptySubtitle}>Toca + para agregar un gasto</Text>
       </View>
     );
   }
@@ -49,14 +53,14 @@ export function TransactionList({ transactions, loading, onEdit, onDelete }: Pro
       keyExtractor={(g) => String(g.week)}
       ListFooterComponent={
         <View style={styles.footer}>
-          <Text style={styles.footerLabel}>Month total</Text>
+          <Text style={styles.footerLabel}>Total del mes</Text>
           <Text style={styles.footerTotal}>${total.toLocaleString('es-CL')}</Text>
         </View>
       }
       renderItem={({ item: group }) => (
         <View>
           <View style={styles.weekHeader}>
-            <Text style={styles.weekLabel}>Week {group.week}</Text>
+            <Text style={styles.weekLabel}>Semana {group.week}</Text>
             <Text style={styles.weekTotal}>
               ${group.items.reduce((s, t) => s + t.amount, 0).toLocaleString('es-CL')}
             </Text>
@@ -75,46 +79,66 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
-  empty: {
+  emptyIcon: {
+    fontSize: 36,
     color: Colors.textMuted,
-    fontSize: 15,
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: Colors.textMuted,
   },
   weekHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 7,
     backgroundColor: Colors.background,
   },
   weekLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    color: Colors.textSecondary,
+    color: Colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   weekTotal: {
     fontSize: 12,
     fontWeight: '600',
     color: Colors.textSecondary,
+    fontFamily: MONO,
+    fontVariant: ['tabular-nums'],
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 16,
-    borderTopWidth: 2,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    marginTop: 4,
+    borderTopWidth: 1,
     borderTopColor: Colors.border,
-    marginTop: 8,
   },
   footerLabel: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.text,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   footerTotal: {
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: '800',
     color: Colors.primary,
+    fontFamily: MONO,
+    fontVariant: ['tabular-nums'],
   },
 });
