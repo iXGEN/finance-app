@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
-import { Transaction } from '../../types';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Transaction, parseSplit } from '../../types';
 import { Colors } from '../../constants/colors';
 import { CATEGORY_COLORS } from '../../constants/categories';
 
@@ -11,59 +12,114 @@ interface Props {
 }
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 function formatAmount(amount: number): string {
   return `$${amount.toLocaleString('es-CL')}`;
 }
 
-function formatDay(date: string): string {
-  const [, , day] = date.split('-');
-  return parseInt(day, 10).toString();
+function parseDate(date: string): { day: string; month: string } {
+  const [, m, d] = date.split('-');
+  return {
+    day: parseInt(d, 10).toString(),
+    month: MONTHS[parseInt(m, 10) - 1] ?? '',
+  };
 }
 
 export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
-  const categoryColor = CATEGORY_COLORS[transaction.category] ?? Colors.textSecondary;
-
-  const handlePress = () => {
-    Alert.alert(transaction.category, transaction.description ?? undefined, [
-      { text: 'Editar', onPress: () => onEdit(transaction) },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: () =>
-          Alert.alert('Eliminar gasto', '¿Eliminar este registro?', [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Eliminar', style: 'destructive', onPress: () => onDelete(transaction.id) },
-          ]),
-      },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const categoryColor = CATEGORY_COLORS[transaction.category] ?? Colors.primary;
+  const { day, month } = parseDate(transaction.date);
+  const splitData = parseSplit(transaction.notes);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.7}>
-      <View style={[styles.colorBar, { backgroundColor: categoryColor }]} />
-      <View style={styles.dayBadge}>
-        <Text style={styles.dayText}>{formatDay(transaction.date)}</Text>
-      </View>
-      <View style={styles.info}>
-        <Text style={styles.category} numberOfLines={1}>{transaction.category}</Text>
-        {transaction.description ? (
-          <Text style={styles.description} numberOfLines={1}>{transaction.description}</Text>
-        ) : null}
-        <View style={styles.meta}>
-          {transaction.payment_method ? (
-            <Text style={styles.metaText}>{transaction.payment_method}</Text>
+    <>
+      <View style={styles.card}>
+        <View style={[styles.dateCol, { borderColor: categoryColor + '40' }]}>
+          <Text style={[styles.dateDay, { color: categoryColor }]}>{day}</Text>
+          <Text style={styles.dateMonth}>{month}</Text>
+        </View>
+
+        <View style={styles.info}>
+          <Text style={styles.category} numberOfLines={1}>{transaction.category}</Text>
+          {transaction.description ? (
+            <Text style={styles.description} numberOfLines={1}>{transaction.description}</Text>
           ) : null}
-          {transaction.is_fixed ? (
-            <View style={styles.fixedBadge}>
-              <Text style={styles.fixedText}>FIJO</Text>
-            </View>
-          ) : null}
+          {splitData && (
+            <Text style={styles.splitParticipants} numberOfLines={1}>
+              {splitData.participants.map((p) =>
+                `${p.name} $${p.amount.toLocaleString('es-CL')}`
+              ).join(' · ')}
+            </Text>
+          )}
+          <View style={styles.meta}>
+            {transaction.payment_method ? (
+              <Text style={styles.metaText}>{transaction.payment_method}</Text>
+            ) : null}
+            {transaction.is_fixed ? (
+              <View style={styles.fixedBadge}>
+                <Text style={styles.fixedText}>FIJO</Text>
+              </View>
+            ) : null}
+            {splitData ? (
+              <View style={styles.splitBadge}>
+                <Text style={styles.splitText}>DIVIDIDO</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.right}>
+          <Text style={[styles.amount, { color: categoryColor }]}>{formatAmount(transaction.amount)}</Text>
+          {splitData && (
+            <Text style={styles.splitTotal}>
+              de ${splitData.total.toLocaleString('es-CL')}
+            </Text>
+          )}
+          <View style={styles.actions}>
+            <TouchableOpacity onPress={() => onEdit(transaction)} style={styles.actionBtn} hitSlop={8}>
+              <Ionicons name="pencil-outline" size={15} color={Colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setConfirmVisible(true)} style={styles.actionBtn} hitSlop={8}>
+              <Ionicons name="trash-outline" size={15} color={Colors.danger + '99'} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-      <Text style={[styles.amount, { color: categoryColor }]}>{formatAmount(transaction.amount)}</Text>
-    </TouchableOpacity>
+
+      <Modal visible={confirmVisible} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.dialog}>
+            <View style={[styles.dialogIcon, { backgroundColor: Colors.danger + '15' }]}>
+              <Ionicons name="trash-outline" size={26} color={Colors.danger} />
+            </View>
+            <Text style={styles.dialogTitle}>Eliminar gasto</Text>
+            <Text style={styles.dialogBody}>
+              {transaction.category}
+              {transaction.description ? `\n${transaction.description}` : ''}
+              {'\n'}
+              <Text style={[styles.dialogAmount, { color: categoryColor }]}>
+                {formatAmount(transaction.amount)}
+              </Text>
+            </Text>
+            <View style={styles.dialogActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setConfirmVisible(false)}
+              >
+                <Text style={styles.cancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => { setConfirmVisible(false); onDelete(transaction.id); }}
+              >
+                <Text style={styles.deleteBtnText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -72,33 +128,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    paddingRight: 16,
-    paddingVertical: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    gap: 12,
   },
-  colorBar: {
-    width: 3,
-    alignSelf: 'stretch',
-    borderRadius: 2,
-    marginRight: 12,
-    marginLeft: 0,
-    opacity: 0.9,
-  },
-  dayBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: Colors.surfaceElevated,
+  dateCol: {
+    width: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 6,
   },
-  dayText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Colors.textSecondary,
+  dateDay: {
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: MONO,
     fontVariant: ['tabular-nums'],
+    lineHeight: 20,
+  },
+  dateMonth: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   info: {
     flex: 1,
@@ -107,7 +163,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.text,
-    letterSpacing: 0.1,
   },
   description: {
     fontSize: 12,
@@ -118,12 +173,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 3,
+    marginTop: 4,
   },
   metaText: {
     fontSize: 11,
     color: Colors.textMuted,
-    letterSpacing: 0.2,
   },
   fixedBadge: {
     backgroundColor: Colors.primaryDim,
@@ -137,11 +191,116 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     letterSpacing: 0.8,
   },
+  splitBadge: {
+    backgroundColor: Colors.successDim,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  splitText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.success,
+    letterSpacing: 0.8,
+  },
+  splitParticipants: {
+    fontSize: 11,
+    color: Colors.success,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  splitTotal: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  right: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   amount: {
     fontSize: 15,
     fontWeight: '700',
-    marginLeft: 8,
     fontFamily: MONO,
     fontVariant: ['tabular-nums'],
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtn: {
+    padding: 2,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  dialog: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  dialogIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  dialogTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  dialogBody: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  dialogAmount: {
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  dialogActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  deleteBtn: {
+    flex: 1,
+    backgroundColor: Colors.danger,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

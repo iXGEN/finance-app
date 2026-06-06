@@ -52,7 +52,7 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="deudas"
-          options={{ title: 'Deudas', tabBarIcon: icon('people-outline') }}
+          options={{ title: 'Saldos', tabBarIcon: icon('swap-horizontal-outline') }}
         />
         <Tabs.Screen
           name="ajustes"

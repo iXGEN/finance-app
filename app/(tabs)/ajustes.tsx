@@ -28,46 +28,46 @@ function DragHandle() {
   );
 }
 
-export default function AjustesScreen() {
+export default function SettingsScreen() {
   const {
     categories, paymentMethods,
     addCategory, removeCategory, renameCategory, reorderCategories,
     addPaymentMethod, removePaymentMethod, renamePaymentMethod, reorderPaymentMethods,
   } = useUserConfigStore();
 
-  const [editingCat, setEditingCat] = useState<EditingItem | null>(null);
-  const [editingPay, setEditingPay] = useState<EditingItem | null>(null);
+  const [editingCategory, setEditingCat] = useState<EditingItem | null>(null);
+  const [editingPayment, setEditingPay] = useState<EditingItem | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [newPayment, setNewPayment] = useState('');
-  const [addingCat, setAddingCat] = useState(false);
-  const [addingPay, setAddingPay] = useState(false);
-  const [savingCat, setSavingCat] = useState(false);
-  const [savingPay, setSavingPay] = useState(false);
+  const [addingCategory, setAddingCat] = useState(false);
+  const [addingPayment, setAddingPay] = useState(false);
+  const [savingCategory, setSavingCat] = useState(false);
+  const [savingPayment, setSavingPay] = useState(false);
 
   const handleSaveRenameCategory = async () => {
-    if (!editingCat) return;
-    const newName = editingCat.value.trim();
+    if (!editingCategory) return;
+    const newName = editingCategory.value.trim();
     if (!newName) { setEditingCat(null); return; }
-    if (newName !== editingCat.original) {
+    if (newName !== editingCategory.original) {
       if (categories.includes(newName)) {
         Alert.alert('Ya existe', 'Esa categoría ya está en la lista.');
         return;
       }
-      await renameCategory(editingCat.original, newName);
+      await renameCategory(editingCategory.original, newName);
     }
     setEditingCat(null);
   };
 
   const handleSaveRenamePayment = async () => {
-    if (!editingPay) return;
-    const newName = editingPay.value.trim();
+    if (!editingPayment) return;
+    const newName = editingPayment.value.trim();
     if (!newName) { setEditingPay(null); return; }
-    if (newName !== editingPay.original) {
+    if (newName !== editingPayment.original) {
       if (paymentMethods.includes(newName)) {
         Alert.alert('Ya existe', 'Ese método ya está en la lista.');
         return;
       }
-      await renamePaymentMethod(editingPay.original, newName);
+      await renamePaymentMethod(editingPayment.original, newName);
     }
     setEditingPay(null);
   };
@@ -121,7 +121,7 @@ export default function AjustesScreen() {
   };
 
   const renderCategoryItem = ({ item, drag, isActive }: RenderItemParams<string>) => {
-    const isEditing = editingCat?.original === item;
+    const isEditing = editingCategory?.original === item;
     return (
       <ScaleDecorator>
         <View style={[styles.row, isActive && styles.rowActive]}>
@@ -132,7 +132,7 @@ export default function AjustesScreen() {
           {isEditing ? (
             <TextInput
               style={styles.editInput}
-              value={editingCat.value}
+              value={editingCategory.value}
               onChangeText={(v) => setEditingCat({ original: item, value: v })}
               autoFocus
               onSubmitEditing={handleSaveRenameCategory}
@@ -163,7 +163,7 @@ export default function AjustesScreen() {
   };
 
   const renderPaymentItem = ({ item, drag, isActive }: RenderItemParams<string>) => {
-    const isEditing = editingPay?.original === item;
+    const isEditing = editingPayment?.original === item;
     return (
       <ScaleDecorator>
         <View style={[styles.row, isActive && styles.rowActive]}>
@@ -174,7 +174,7 @@ export default function AjustesScreen() {
           {isEditing ? (
             <TextInput
               style={styles.editInput}
-              value={editingPay.value}
+              value={editingPayment.value}
               onChangeText={(v) => setEditingPay({ original: item, value: v })}
               autoFocus
               onSubmitEditing={handleSaveRenamePayment}
@@ -220,7 +220,7 @@ export default function AjustesScreen() {
             renderItem={renderCategoryItem}
             activationDistance={10}
           />
-          {addingCat ? (
+          {addingCategory ? (
             <View style={styles.addRow}>
               <TextInput
                 style={styles.addInput}
@@ -231,8 +231,8 @@ export default function AjustesScreen() {
                 autoFocus
                 onSubmitEditing={handleAddCategory}
               />
-              <TouchableOpacity onPress={handleAddCategory} disabled={savingCat} style={styles.confirmBtn}>
-                {savingCat
+              <TouchableOpacity onPress={handleAddCategory} disabled={savingCategory} style={styles.confirmBtn}>
+                {savingCategory
                   ? <ActivityIndicator size="small" color={Colors.background} />
                   : <Text style={styles.confirmBtnText}>Agregar</Text>
                 }
@@ -257,7 +257,7 @@ export default function AjustesScreen() {
             renderItem={renderPaymentItem}
             activationDistance={10}
           />
-          {addingPay ? (
+          {addingPayment ? (
             <View style={styles.addRow}>
               <TextInput
                 style={styles.addInput}
@@ -268,8 +268,8 @@ export default function AjustesScreen() {
                 autoFocus
                 onSubmitEditing={handleAddPayment}
               />
-              <TouchableOpacity onPress={handleAddPayment} disabled={savingPay} style={styles.confirmBtn}>
-                {savingPay
+              <TouchableOpacity onPress={handleAddPayment} disabled={savingPayment} style={styles.confirmBtn}>
+                {savingPayment
                   ? <ActivityIndicator size="small" color={Colors.background} />
                   : <Text style={styles.confirmBtnText}>Agregar</Text>
                 }

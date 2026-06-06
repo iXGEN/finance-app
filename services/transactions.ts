@@ -73,6 +73,27 @@ export async function deleteTransaction(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function getSpentByMonths(months: string[], category?: string): Promise<Record<string, number>> {
+  let query = supabase
+    .from('transactions')
+    .select('month, amount')
+    .in('month', months);
+
+  if (category) {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const byMonth: Record<string, number> = {};
+  for (const m of months) byMonth[m] = 0;
+  for (const row of data ?? []) {
+    byMonth[row.month] = (byMonth[row.month] ?? 0) + row.amount;
+  }
+  return byMonth;
+}
+
 export async function getSpentByCategory(month: string): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from('transactions')

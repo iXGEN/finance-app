@@ -43,10 +43,38 @@ export interface Debt {
 
 export type DebtInsert = Omit<Debt, 'id' | 'user_id' | 'created_at'>;
 
+export interface SplitEntry {
+  name: string;
+  amount: number;
+  debtId: string;
+}
+
+export interface SplitData {
+  _s: 1;
+  participants: SplitEntry[];
+  total: number;
+  notes: string;
+}
+
+export function parseSplit(notes: string | null | undefined): SplitData | null {
+  if (!notes) return null;
+  try {
+    const d = JSON.parse(notes);
+    return d._s === 1 ? (d as SplitData) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function encodeSplit(participants: SplitEntry[], total: number, userNotes: string): string {
+  return JSON.stringify({ _s: 1, participants, total, notes: userNotes } satisfies SplitData);
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   isLoading?: boolean;
+  isError?: boolean;
 }

@@ -116,8 +116,8 @@ export function BudgetCard({ item, month, onUpdate }: Props) {
 
             <TextInput
               style={styles.sheetInput}
-              value={value}
-              onChangeText={setValue}
+              value={value ? parseInt(value, 10).toLocaleString('es-CL') : ''}
+              onChangeText={(text) => setValue(text.replace(/\D/g, ''))}
               keyboardType="numeric"
               autoFocus
               placeholder="0"

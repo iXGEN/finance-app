@@ -24,6 +24,7 @@ export const PAYMENT_METHODS = [
   'Débito',
   'Transferencia',
   'Efectivo',
+  'Deuda',
 ] as const;
 
 export const CATEGORY_COLORS: Record<string, string> = {

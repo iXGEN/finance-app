@@ -27,7 +27,7 @@ export async function upsertBudget(month: string, category: string, budget: numb
   if (error) throw error;
 }
 
-export async function getBudgetSummary(month: string, userCategories: string[]): Promise<BudgetSummaryItem[]> {
+export async function getBudgetSummary(month: string, userCategories: string[] = []): Promise<BudgetSummaryItem[]> {
   const [configs, spent] = await Promise.all([
     getBudgetConfigs(month),
     getSpentByCategory(month),

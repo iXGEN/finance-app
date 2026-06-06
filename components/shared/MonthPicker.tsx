@@ -4,18 +4,18 @@ import { Colors } from '../../constants/colors';
 
 interface Props {
   value: string; // YYYY-MM
-  onChange: (mes: string) => void;
+  onChange: (month: string) => void;
 }
 
-function formatDisplay(mes: string): string {
-  const [year, month] = mes.split('-');
-  const date = new Date(Number(year), Number(month) - 1);
+function formatDisplay(month: string): string {
+  const [year, monthNum] = month.split('-');
+  const date = new Date(Number(year), Number(monthNum) - 1);
   return date.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
 }
 
-function addMonths(mes: string, delta: number): string {
-  const [year, month] = mes.split('-').map(Number);
-  const date = new Date(year, month - 1 + delta);
+function addMonths(month: string, delta: number): string {
+  const [year, monthNum] = month.split('-').map(Number);
+  const date = new Date(year, monthNum - 1 + delta);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 

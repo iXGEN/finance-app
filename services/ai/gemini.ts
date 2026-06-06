@@ -1,14 +1,18 @@
-import { GoogleGenerativeAI, Content } from '@google/generative-ai';
+import Groq from 'groq-sdk';
+import { fetch } from 'expo/fetch';
 import { toolDefinitions, executeTool } from './tools';
 
-const genAI = new GoogleGenerativeAI(process.env.EXPO_PUBLIC_GOOGLE_API_KEY!);
+const MODEL = 'llama-3.3-70b-versatile';
 
 const SYSTEM_PROMPT = `You are a personal finance assistant. You have access to the user's expense records in Chilean pesos (CLP).
 
 You can:
 - Record expenses when the user mentions them (use add_transaction)
 - Answer questions about their spending (use get_transactions and get_budget_summary)
-- Record debts (use add_debt)
+- Compare months (use compare_months)
+- Show spending trends (use get_spending_trend)
+- Edit or delete transactions (use get_transactions to find the ID first, then update_transaction or delete_transaction)
+- Record and consult debts (use add_debt and get_debt_summary)
 
 Rules:
 - When the user mentions an expense, ALWAYS call add_transaction before confirming.
@@ -23,15 +27,12 @@ export type ConversationMessage = {
   content: string;
 };
 
-function toGeminiHistory(history: ConversationMessage[]): Content[] {
-  const mapped = history.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-  // Gemini requires history to start with 'user'
-  const firstUser = mapped.findIndex((m) => m.role === 'user');
-  if (firstUser === -1) return [];
-  return firstUser > 0 ? mapped.slice(firstUser) : mapped;
+function parseGroqError(err: unknown): never {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota')) {
+    throw new Error('Límite de uso alcanzado. Intenta en unos segundos.');
+  }
+  throw err instanceof Error ? err : new Error(msg);
 }
 
 export async function sendMessage(
@@ -39,47 +40,100 @@ export async function sendMessage(
   history: ConversationMessage[],
   onUpdate?: (text: string) => void,
 ): Promise<string> {
-  if (!process.env.EXPO_PUBLIC_GOOGLE_API_KEY) {
-    throw new Error('EXPO_PUBLIC_GOOGLE_API_KEY no está definida. Reinicia el servidor de Expo después de agregar la variable al .env.');
+  if (!process.env.EXPO_PUBLIC_GROQ_API_KEY) {
+    throw new Error('EXPO_PUBLIC_GROQ_API_KEY no está definida. Agrégala al .env y reinicia Expo.');
   }
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: SYSTEM_PROMPT,
-    tools: [{ functionDeclarations: toolDefinitions }],
+  const groq = new Groq({
+    apiKey: process.env.EXPO_PUBLIC_GROQ_API_KEY,
+    dangerouslyAllowBrowser: true,
+    fetch: fetch as unknown as typeof globalThis.fetch,
   });
 
-  const geminiHistory = toGeminiHistory(history);
-  console.log('[Gemini] history:', JSON.stringify(geminiHistory, null, 2));
-  console.log('[Gemini] userMessage:', userMessage);
+  const messages: Groq.Chat.ChatCompletionMessageParam[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    { role: 'user', content: userMessage },
+  ];
 
-  const chat = model.startChat({ history: geminiHistory });
+  try {
+    let retries = 0;
+    while (true) {
+      let stream;
+      try {
+        stream = await groq.chat.completions.create({
+          model: MODEL,
+          messages,
+          tools: toolDefinitions,
+          tool_choice: 'auto',
+          stream: true,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if ((msg.includes('tool_use_failed') || msg.includes('validation failed')) && retries < 3) {
+          retries++;
+          continue;
+        }
+        throw err;
+      }
 
-  let result = await chat.sendMessage(userMessage);
-  let response = result.response;
+      let content = '';
+      const pendingTools: Record<number, { id: string; name: string; arguments: string }> = {};
 
-  // Agentic loop: keep going while model wants to use tools
-  while (true) {
-    const functionCalls = response.functionCalls();
-    if (!functionCalls || functionCalls.length === 0) break;
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta;
+        if (!delta) continue;
 
-    const toolResults = await Promise.all(
-      functionCalls.map(async (fc) => {
-        const output = await executeTool(fc.name, fc.args as Record<string, unknown>);
-        return {
-          functionResponse: {
-            name: fc.name,
-            response: output as object,
-          },
-        };
-      }),
-    );
+        if (delta.content) {
+          content += delta.content;
+          onUpdate?.(content);
+        }
 
-    result = await chat.sendMessage(toolResults);
-    response = result.response;
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index;
+            if (!pendingTools[idx]) {
+              pendingTools[idx] = { id: '', name: '', arguments: '' };
+            }
+            if (tc.id) pendingTools[idx].id = tc.id;
+            if (tc.function?.name) pendingTools[idx].name += tc.function.name;
+            if (tc.function?.arguments) pendingTools[idx].arguments += tc.function.arguments;
+          }
+        }
+      }
+
+      const toolCalls = Object.values(pendingTools);
+      retries = 0;
+
+      if (toolCalls.length === 0) {
+        return content;
+      }
+
+      messages.push({
+        role: 'assistant',
+        content: content || null,
+        tool_calls: toolCalls.map((tc) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.name, arguments: tc.arguments },
+        })),
+      } as Groq.Chat.ChatCompletionMessageParam);
+
+      onUpdate?.('...');
+
+      await Promise.all(
+        toolCalls.map(async (tc) => {
+          const args = (JSON.parse(tc.arguments || '{}') ?? {}) as Record<string, unknown>;
+          const result = await executeTool(tc.name, args);
+          messages.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: JSON.stringify(result),
+          });
+        }),
+      );
+    }
+  } catch (err) {
+    parseGroqError(err);
   }
-
-  const text = response.text();
-  onUpdate?.(text);
-  return text;
 }

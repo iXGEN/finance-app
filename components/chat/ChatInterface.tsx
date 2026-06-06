@@ -20,58 +20,54 @@ export function ChatInterface() {
     {
       id: uid(),
       role: 'assistant',
-      content: 'Hola! Puedo registrar tus gastos, responder preguntas sobre tu presupuesto o anotar deudas. ¿En qué te ayudo?',
+      content: 'Hola! Puedo registrar tus gastos, responder preguntas sobre tu presupuesto, comparar meses, editar o borrar gastos, y anotar deudas. ¿En qué te ayudo?',
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const lastUserMessageRef = useRef('');
   const refreshTransactions = useTransactionsStore((s) => s.refresh);
   const fetchBudget = useBudgetStore((s) => s.fetchSummary);
   const fetchDebts = useDebtsStore((s) => s.fetchDebts);
   const selectedMonth = useTransactionsStore((s) => s.selectedMonth);
 
   const history: ConversationMessage[] = messages
-    .filter((m) => !m.isLoading)
+    .filter((m) => !m.isLoading && !m.isError)
     .map((m) => ({ role: m.role, content: m.content }));
 
-  const sendMsg = useCallback(async () => {
-    const text = input.trim();
-    if (!text || loading) return;
+  const runSend = useCallback(async (text: string) => {
+    const loadingId = uid();
+    const loadingMsg: ChatMessage = { id: loadingId, role: 'assistant', content: '', timestamp: new Date(), isLoading: true };
 
-    setInput('');
-    const userMsg: ChatMessage = { id: uid(), role: 'user', content: text, timestamp: new Date() };
-    const loadingMsg: ChatMessage = { id: uid(), role: 'assistant', content: '', timestamp: new Date(), isLoading: true };
-
-    setMessages((prev) => [...prev, userMsg, loadingMsg]);
+    setMessages((prev) => [...prev, loadingMsg]);
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
 
     setLoading(true);
     try {
       const response = await sendMessage(text, history, (partial) => {
         setMessages((prev) =>
-          prev.map((m) => (m.isLoading ? { ...m, content: partial, isLoading: false } : m)),
+          prev.map((m) => m.id === loadingId ? { ...m, content: partial, isLoading: false } : m),
         );
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 50);
       });
 
       setMessages((prev) =>
-        prev.map((m) => (m.isLoading ? { ...m, content: response, isLoading: false } : m)),
+        prev.map((m) => m.id === loadingId ? { ...m, content: response, isLoading: false } : m),
       );
 
-      // Refresh stores in case the AI added data
       await Promise.all([
         refreshTransactions(),
         fetchBudget(selectedMonth),
         fetchDebts(),
       ]);
     } catch (err) {
-      console.error('[ChatInterface] AI error:', err);
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = err instanceof Error ? err.message : 'Ocurrió un error inesperado.';
       setMessages((prev) =>
         prev.map((m) =>
-          m.isLoading
-            ? { ...m, content: `Error: ${errMsg}`, isLoading: false }
+          m.id === loadingId
+            ? { ...m, content: errMsg, isLoading: false, isError: true }
             : m,
         ),
       );
@@ -79,7 +75,27 @@ export function ChatInterface() {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [input, loading, history, refreshTransactions, fetchBudget, fetchDebts, selectedMonth]);
+  }, [history, refreshTransactions, fetchBudget, fetchDebts, selectedMonth]);
+
+  const sendMsg = useCallback(async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+
+    setInput('');
+    lastUserMessageRef.current = text;
+
+    const userMsg: ChatMessage = { id: uid(), role: 'user', content: text, timestamp: new Date() };
+    setMessages((prev) => [...prev, userMsg]);
+
+    await runSend(text);
+  }, [input, loading, runSend]);
+
+  const retry = useCallback(() => {
+    const text = lastUserMessageRef.current;
+    if (!text || loading) return;
+    setMessages((prev) => prev.filter((m) => !m.isError));
+    runSend(text);
+  }, [loading, runSend]);
 
   return (
     <KeyboardAvoidingView
@@ -91,7 +107,9 @@ export function ChatInterface() {
         ref={listRef}
         data={messages}
         keyExtractor={(m) => m.id}
-        renderItem={({ item }) => <MessageBubble message={item} />}
+        renderItem={({ item }) => (
+          <MessageBubble message={item} onRetry={item.isError ? retry : undefined} />
+        )}
         contentContainerStyle={styles.list}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
       />
