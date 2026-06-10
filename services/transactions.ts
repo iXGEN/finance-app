@@ -28,6 +28,18 @@ export async function getTransactions(month: string, category?: string): Promise
   return data ?? [];
 }
 
+export async function getTransactionById(id: string): Promise<Transaction | null> {
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error?.code === 'PGRST116') return null; // no rows
+  if (error) throw error;
+  return data;
+}
+
 export async function addTransaction(tx: Omit<TransactionInsert, 'week' | 'month'>): Promise<Transaction> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');

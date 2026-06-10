@@ -10,6 +10,7 @@ import { sendMessage, ConversationMessage } from '../../services/ai/gemini';
 import { useTransactionsStore } from '../../store/transactionsStore';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useDebtsStore } from '../../store/debtsStore';
+import { useUserConfigStore } from '../../store/userConfigStore';
 
 function uid(): string {
   return Math.random().toString(36).substring(2);
@@ -20,7 +21,7 @@ export function ChatInterface() {
     {
       id: uid(),
       role: 'assistant',
-      content: 'Hola! Puedo registrar tus gastos, responder preguntas sobre tu presupuesto, comparar meses, editar o borrar gastos, y anotar deudas. ¿En qué te ayudo?',
+      content: 'Hola! Puedo manejar toda la app por ti: registrar gastos (fijos, divididos o "Deuda"), editarlos y borrarlos, ajustar el presupuesto por categoría, ver y saldar tus Saldos, comparar meses, y administrar categorías y métodos de pago. ¿En qué te ayudo?',
       timestamp: new Date(),
     },
   ]);
@@ -31,7 +32,11 @@ export function ChatInterface() {
   const refreshTransactions = useTransactionsStore((s) => s.refresh);
   const fetchBudget = useBudgetStore((s) => s.fetchSummary);
   const fetchDebts = useDebtsStore((s) => s.fetchDebts);
+  const fetchConfig = useUserConfigStore((s) => s.fetch);
   const selectedMonth = useTransactionsStore((s) => s.selectedMonth);
+  const categories = useUserConfigStore((s) => s.categories);
+  const paymentMethods = useUserConfigStore((s) => s.paymentMethods);
+  const persons = useUserConfigStore((s) => s.persons);
 
   const history: ConversationMessage[] = messages
     .filter((m) => !m.isLoading && !m.isError)
@@ -46,7 +51,7 @@ export function ChatInterface() {
 
     setLoading(true);
     try {
-      const response = await sendMessage(text, history, (partial) => {
+      const response = await sendMessage(text, history, { categories, paymentMethods, persons }, (partial) => {
         setMessages((prev) =>
           prev.map((m) => m.id === loadingId ? { ...m, content: partial, isLoading: false } : m),
         );
@@ -61,6 +66,7 @@ export function ChatInterface() {
         refreshTransactions(),
         fetchBudget(selectedMonth),
         fetchDebts(),
+        fetchConfig(),
       ]);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : 'Ocurrió un error inesperado.';
@@ -75,7 +81,7 @@ export function ChatInterface() {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [history, refreshTransactions, fetchBudget, fetchDebts, selectedMonth]);
+  }, [history, refreshTransactions, fetchBudget, fetchDebts, fetchConfig, selectedMonth, categories, paymentMethods, persons]);
 
   const sendMsg = useCallback(async () => {
     const text = input.trim();
