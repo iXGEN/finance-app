@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  Modal, TextInput, Alert, ScrollView, ActivityIndicator, Platform,
+  Modal, TextInput, Alert, ScrollView, ActivityIndicator, Platform, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -162,12 +162,20 @@ export default function SaldosScreen() {
       </View>
 
       {/* Person list */}
-      {loading ? (
+      {loading && personGroups.length === 0 ? (
         <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>
       ) : (
         <FlatList
           data={personGroups}
           keyExtractor={(g) => g.person}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={fetchDebts}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
           renderItem={({ item }) => (
             <PersonRow group={item} onPress={() => setSelectedPerson(item.person)} />
           )}
