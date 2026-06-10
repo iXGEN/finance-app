@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { CATEGORIES, PAYMENT_METHODS } from '../constants/categories';
 import { getUserConfig, saveUserConfig } from '../services/userConfig';
+import { migrateCategoryName, migratePaymentMethodName } from '../services/transactions';
+import { migrateBudgetCategoryName } from '../services/budget';
+import { useTransactionsStore } from './transactionsStore';
 
 interface UserConfigState {
   categories: string[];
@@ -51,6 +54,10 @@ export const useUserConfigStore = create<UserConfigState>((set, get) => ({
     const categories = get().categories.map((c) => (c === oldName ? newName : c));
     set({ categories });
     await saveUserConfig(categories, get().paymentMethods, get().persons);
+    // Carry the rename through to historical expenses and budgets so nothing is orphaned.
+    await migrateCategoryName(oldName, newName);
+    await migrateBudgetCategoryName(oldName, newName);
+    await useTransactionsStore.getState().refresh();
   },
 
   reorderCategories: async (newOrder) => {
@@ -74,6 +81,8 @@ export const useUserConfigStore = create<UserConfigState>((set, get) => ({
     const paymentMethods = get().paymentMethods.map((m) => (m === oldName ? newName : m));
     set({ paymentMethods });
     await saveUserConfig(get().categories, paymentMethods, get().persons);
+    await migratePaymentMethodName(oldName, newName);
+    await useTransactionsStore.getState().refresh();
   },
 
   reorderPaymentMethods: async (newOrder) => {

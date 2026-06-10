@@ -73,6 +73,43 @@ export async function deleteTransaction(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Re-points every expense from an old category/payment_method name to a new one. */
+async function migrateField(field: 'category' | 'payment_method', oldName: string, newName: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('transactions')
+    .update({ [field]: newName })
+    .eq('user_id', user.id)
+    .eq(field, oldName);
+
+  if (error) throw error;
+}
+
+export function migrateCategoryName(oldName: string, newName: string): Promise<void> {
+  return migrateField('category', oldName, newName);
+}
+
+export function migratePaymentMethodName(oldName: string, newName: string): Promise<void> {
+  return migrateField('payment_method', oldName, newName);
+}
+
+/** Counts how many expenses currently reference a given category or payment_method. */
+export async function countTransactionsByField(field: 'category' | 'payment_method', value: string): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { count, error } = await supabase
+    .from('transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq(field, value);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function getSpentByMonths(months: string[], category?: string): Promise<Record<string, number>> {
   let query = supabase
     .from('transactions')

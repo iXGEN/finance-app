@@ -12,6 +12,7 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist';
 import { Colors } from '../../constants/colors';
 import { useUserConfigStore } from '../../store/userConfigStore';
+import { countTransactionsByField } from '../../services/transactions';
 
 interface EditingItem {
   original: string;
@@ -89,8 +90,13 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleRemoveCategory = (cat: string) => {
-    Alert.alert('Eliminar categoría', `¿Eliminar "${cat}"?`, [
+  const handleRemoveCategory = async (cat: string) => {
+    let count = 0;
+    try { count = await countTransactionsByField('category', cat); } catch {}
+    const warn = count > 0
+      ? `\n\nHay ${count} gasto${count === 1 ? '' : 's'} con esta categoría; conservarán el nombre "${cat}".`
+      : '';
+    Alert.alert('Eliminar categoría', `¿Eliminar "${cat}"?${warn}`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => removeCategory(cat) },
     ]);
@@ -113,8 +119,13 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleRemovePayment = (method: string) => {
-    Alert.alert('Eliminar método', `¿Eliminar "${method}"?`, [
+  const handleRemovePayment = async (method: string) => {
+    let count = 0;
+    try { count = await countTransactionsByField('payment_method', method); } catch {}
+    const warn = count > 0
+      ? `\n\nHay ${count} gasto${count === 1 ? '' : 's'} con este método; conservarán el nombre "${method}".`
+      : '';
+    Alert.alert('Eliminar método', `¿Eliminar "${method}"?${warn}`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => removePaymentMethod(method) },
     ]);

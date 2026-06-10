@@ -28,6 +28,43 @@ export async function upsertBudget(month: string, category: string, budget: numb
 }
 
 /**
+ * Re-points budget rows from an old category name to a new one. Respects the
+ * unique (user_id, month, category) constraint: for any month that already has a
+ * budget under the new name, the stale old-name row is dropped instead of renamed.
+ */
+export async function migrateBudgetCategoryName(oldName: string, newName: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: existingNew, error: e1 } = await supabase
+    .from('budget_config')
+    .select('month')
+    .eq('user_id', user.id)
+    .eq('category', newName);
+  if (e1) throw e1;
+  const takenMonths = new Set((existingNew ?? []).map((r) => r.month));
+
+  const { data: oldRows, error: e2 } = await supabase
+    .from('budget_config')
+    .select('id, month')
+    .eq('user_id', user.id)
+    .eq('category', oldName);
+  if (e2) throw e2;
+
+  const toRename = (oldRows ?? []).filter((r) => !takenMonths.has(r.month)).map((r) => r.id);
+  const toDelete = (oldRows ?? []).filter((r) => takenMonths.has(r.month)).map((r) => r.id);
+
+  if (toRename.length) {
+    const { error } = await supabase.from('budget_config').update({ category: newName }).in('id', toRename);
+    if (error) throw error;
+  }
+  if (toDelete.length) {
+    const { error } = await supabase.from('budget_config').delete().in('id', toDelete);
+    if (error) throw error;
+  }
+}
+
+/**
  * Copies every budget from `fromMonth` into `toMonth`, skipping categories that
  * already have a budget set in the target month. Returns how many were copied.
  */
