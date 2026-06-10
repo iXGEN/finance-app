@@ -11,6 +11,7 @@ import { CategoryBars } from '../../components/insights/CategoryBars';
 import { StatCard } from '../../components/insights/StatCard';
 import { getMonthlyOverview, MonthlyOverview } from '../../services/insights';
 import { currentMonth } from '../../services/dates';
+import { useT } from '../../services/i18n';
 import { Colors } from '../../constants/colors';
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -20,6 +21,7 @@ function clp(n: number): string {
 }
 
 export default function ResumenScreen() {
+  const t = useT();
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState<MonthlyOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,12 +69,12 @@ export default function ResumenScreen() {
           <Hero data={data} />
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Últimos 6 meses</Text>
+            <Text style={styles.cardTitle}>{t.summary.last6Months}</Text>
             <MiniBarChart data={data.trend} highlightMonth={data.month} />
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Top categorías</Text>
+            <Text style={styles.cardTitle}>{t.summary.topCategories}</Text>
             {data.topCategories.length > 0 ? (
               <CategoryBars
                 items={data.topCategories}
@@ -80,19 +82,19 @@ export default function ResumenScreen() {
                 onPressCategory={goToCategory}
               />
             ) : (
-              <Text style={styles.emptyHint}>Sin gastos este mes</Text>
+              <Text style={styles.emptyHint}>{t.summary.noExpensesThisMonth}</Text>
             )}
           </View>
 
           <View style={styles.snapshotRow}>
             <StatCard
-              label="A tu favor"
+              label={t.summary.owedToYou}
               value={clp(data.debtOwedToMe)}
               accent={Colors.success}
               onPress={() => router.navigate('/deudas')}
             />
             <StatCard
-              label="Debes"
+              label={t.summary.youOwe}
               value={clp(data.debtIOwe)}
               accent={Colors.danger}
               onPress={() => router.navigate('/deudas')}
@@ -107,6 +109,7 @@ export default function ResumenScreen() {
 }
 
 function Hero({ data }: { data: MonthlyOverview }) {
+  const t = useT();
   const { totalSpent, totalBudget, prevSpent } = data;
   const over = totalBudget > 0 && totalSpent > totalBudget;
   const pct = totalBudget > 0 ? Math.min(totalSpent / totalBudget, 1) : 0;
@@ -119,7 +122,7 @@ function Hero({ data }: { data: MonthlyOverview }) {
 
   return (
     <View style={styles.hero}>
-      <Text style={styles.heroLabel}>Gasto del mes</Text>
+      <Text style={styles.heroLabel}>{t.summary.monthSpend}</Text>
       <Text style={styles.heroValue}>{clp(totalSpent)}</Text>
 
       {pctChange !== null && (
@@ -128,7 +131,7 @@ function Hero({ data }: { data: MonthlyOverview }) {
             <Ionicons name={up ? 'arrow-up' : 'arrow-down'} size={12} color={chipColor} />
             <Text style={[styles.heroChipText, { color: chipColor }]}>{Math.abs(pctChange)}%</Text>
           </View>
-          <Text style={styles.heroChipCaption}>vs mes anterior ({clp(prevSpent)})</Text>
+          <Text style={styles.heroChipCaption}>{t.summary.vsPrevMonth(clp(prevSpent))}</Text>
         </View>
       )}
 
@@ -140,14 +143,14 @@ function Hero({ data }: { data: MonthlyOverview }) {
             />
           </View>
           <View style={styles.heroBudgetRow}>
-            <Text style={styles.heroBudgetText}>de {clp(totalBudget)} presupuestado</Text>
+            <Text style={styles.heroBudgetText}>{t.summary.ofBudgeted(clp(totalBudget))}</Text>
             <Text style={[styles.heroBudgetText, { color: over ? Colors.danger : Colors.primary, fontWeight: '700' }]}>
-              {over ? `Excedido ${clp(-remaining)}` : `Disponible ${clp(remaining)}`}
+              {over ? t.summary.exceeded(clp(-remaining)) : t.summary.available(clp(remaining))}
             </Text>
           </View>
         </View>
       ) : (
-        <Text style={styles.heroNoBudget}>Sin presupuesto definido este mes</Text>
+        <Text style={styles.heroNoBudget}>{t.summary.noBudget}</Text>
       )}
     </View>
   );

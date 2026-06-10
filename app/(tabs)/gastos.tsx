@@ -13,6 +13,7 @@ import { useTransactionsStore } from '../../store/transactionsStore';
 import { useUserConfigStore } from '../../store/userConfigStore';
 import { getFixedExpenses, carryOverFixedExpenses } from '../../services/recurring';
 import { currentMonth, addMonths, formatMonthLong } from '../../services/dates';
+import { useT } from '../../services/i18n';
 import { Colors } from '../../constants/colors';
 import { Transaction } from '../../types';
 
@@ -31,6 +32,7 @@ function applyFilters(txs: Transaction[], f: TransactionFilterState): Transactio
 }
 
 export default function ExpensesScreen() {
+  const t = useT();
   const {
     transactions, loading, selectedMonth,
     setSelectedMonth, fetchTransactions,
@@ -80,9 +82,9 @@ export default function ExpensesScreen() {
     try {
       const res = await carryOverFixedExpenses(fixedHint.from, selectedMonth);
       await fetchTransactions();
-      if (res.created === 0) Alert.alert('Sin cambios', 'No había gastos fijos nuevos que traer.');
+      if (res.created === 0) Alert.alert(t.expenses.noChangesTitle, t.expenses.noChangesMsg);
     } catch (e) {
-      Alert.alert('Error', String(e));
+      Alert.alert(t.common.error, String(e));
     } finally {
       setCarrying(false);
     }
@@ -121,12 +123,12 @@ export default function ExpensesScreen() {
         <TouchableOpacity style={styles.carryBanner} onPress={handleCarryFixed} disabled={carrying} activeOpacity={0.85}>
           <Ionicons name="repeat-outline" size={18} color={Colors.primary} />
           <View style={styles.carryTextWrap}>
-            <Text style={styles.carryTitle}>Traer gastos fijos</Text>
+            <Text style={styles.carryTitle}>{t.expenses.carryFixedTitle}</Text>
             <Text style={styles.carrySub}>
-              {fixedHint.count} fijo{fixedHint.count === 1 ? '' : 's'} de {formatMonthLong(fixedHint.from)}
+              {t.expenses.carryFixedSub(fixedHint.count, formatMonthLong(fixedHint.from))}
             </Text>
           </View>
-          <Text style={styles.carryAction}>{carrying ? '…' : 'Traer'}</Text>
+          <Text style={styles.carryAction}>{carrying ? '…' : t.expenses.carry}</Text>
         </TouchableOpacity>
       )}
 
@@ -136,8 +138,8 @@ export default function ExpensesScreen() {
         onEdit={handleEdit}
         onDelete={deleteTransaction}
         onRefresh={fetchTransactions}
-        emptyTitle={filtersActive ? 'Sin resultados' : undefined}
-        emptySubtitle={filtersActive ? 'Ningún gasto coincide con el filtro' : undefined}
+        emptyTitle={filtersActive ? t.expenses.noResultsTitle : undefined}
+        emptySubtitle={filtersActive ? t.expenses.noResultsSub : undefined}
       />
 
       <TouchableOpacity style={styles.fab} onPress={() => setFormVisible(true)} activeOpacity={0.85}>

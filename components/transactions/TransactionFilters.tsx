@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { CATEGORY_COLORS } from '../../constants/categories';
+import { useT } from '../../services/i18n';
 
 export interface TransactionFilterState {
   text: string;

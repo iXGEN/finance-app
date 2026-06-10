@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Colors } from '../../constants/colors';
-import { addMonths } from '../../services/dates';
+import { addMonths, formatMonthLong } from '../../services/dates';
+import { useLocaleStore } from '../../store/localeStore';
 
 interface Props {
   value: string; // YYYY-MM
@@ -9,13 +10,8 @@ interface Props {
   maxMonth?: string; // YYYY-MM; forward navigation is blocked beyond this month
 }
 
-function formatDisplay(month: string): string {
-  const [year, monthNum] = month.split('-');
-  const date = new Date(Number(year), Number(monthNum) - 1);
-  return date.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-}
-
 export function MonthPicker({ value, onChange, maxMonth }: Props) {
+  const locale = useLocaleStore((s) => s.locale); // re-render the label on language change
   const atMax = maxMonth != null && value >= maxMonth;
 
   return (
@@ -23,7 +19,7 @@ export function MonthPicker({ value, onChange, maxMonth }: Props) {
       <TouchableOpacity onPress={() => onChange(addMonths(value, -1))} style={styles.btn} hitSlop={8}>
         <Text style={styles.arrow}>‹</Text>
       </TouchableOpacity>
-      <Text style={styles.label}>{formatDisplay(value)}</Text>
+      <Text style={styles.label}>{formatMonthLong(value, locale)}</Text>
       <TouchableOpacity
         onPress={() => { if (!atMax) onChange(addMonths(value, 1)); }}
         style={styles.btn}

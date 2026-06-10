@@ -9,6 +9,7 @@ import { useDebtsStore } from '../../store/debtsStore';
 import { useUserConfigStore } from '../../store/userConfigStore';
 import { DebtCard } from '../../components/debts/DebtCard';
 import { Debt } from '../../types';
+import { useT } from '../../services/i18n';
 import { Colors } from '../../constants/colors';
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -26,6 +27,7 @@ interface PersonGroup {
 // ─── Person row ───────────────────────────────────────────────────────────────
 
 function PersonRow({ group, onPress }: { group: PersonGroup; onPress: () => void }) {
+  const t = useT();
   const { net, person, debts } = group;
   const color = net > 0 ? Colors.success : net < 0 ? Colors.danger : Colors.textMuted;
 
@@ -40,7 +42,7 @@ function PersonRow({ group, onPress }: { group: PersonGroup; onPress: () => void
       <View style={styles.personInfo}>
         <Text style={styles.personName}>{person}</Text>
         <Text style={styles.personMeta}>
-          {debts.length} {debts.length === 1 ? 'entrada' : 'entradas'}
+          {t.balances.entries(debts.length)}
         </Text>
       </View>
 
@@ -49,7 +51,7 @@ function PersonRow({ group, onPress }: { group: PersonGroup; onPress: () => void
           {net > 0 ? '+' : net < 0 ? '−' : ''}${Math.abs(net).toLocaleString('es-CL')}
         </Text>
         <Text style={[styles.personDirection, { color }]}>
-          {net > 0 ? 'a tu favor' : net < 0 ? 'debes' : 'saldado'}
+          {net > 0 ? t.balances.inYourFavor : net < 0 ? t.balances.youOweTag : t.balances.settled}
         </Text>
       </View>
 
@@ -61,6 +63,7 @@ function PersonRow({ group, onPress }: { group: PersonGroup; onPress: () => void
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function SaldosScreen() {
+  const t = useT();
   const { debts, loading, fetchDebts, addDebt, markPaid, deleteDebt } = useDebtsStore();
   const { persons, addPerson } = useUserConfigStore();
 
@@ -110,7 +113,7 @@ export default function SaldosScreen() {
   const handleAdd = async () => {
     const num = parseInt(amount.replace(/\D/g, ''), 10);
     if (!personInput.trim() || !num) {
-      Alert.alert('Error', 'Completa persona y monto');
+      Alert.alert(t.common.error, t.balances.completePersonAmount);
       return;
     }
     setSaving(true);
@@ -140,21 +143,21 @@ export default function SaldosScreen() {
       {/* Summary bar */}
       <View style={styles.summary}>
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>A tu favor</Text>
+          <Text style={styles.summaryLabel}>{t.balances.owedToYou}</Text>
           <Text style={[styles.summaryValue, { color: Colors.success, fontFamily: MONO }]}>
             +${owedToMe.toLocaleString('es-CL')}
           </Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Debes</Text>
+          <Text style={styles.summaryLabel}>{t.balances.youOwe}</Text>
           <Text style={[styles.summaryValue, { color: Colors.danger, fontFamily: MONO }]}>
             −${iOwe.toLocaleString('es-CL')}
           </Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.summaryItem}>
-          <Text style={styles.summaryLabel}>Neto</Text>
+          <Text style={styles.summaryLabel}>{t.balances.net}</Text>
           <Text style={[styles.summaryValue, { color: net >= 0 ? Colors.success : Colors.danger, fontFamily: MONO }]}>
             {net >= 0 ? '+' : '−'}${Math.abs(net).toLocaleString('es-CL')}
           </Text>
@@ -182,8 +185,8 @@ export default function SaldosScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={styles.emptyIcon}>⇌</Text>
-              <Text style={styles.emptyTitle}>Sin saldos pendientes</Text>
-              <Text style={styles.emptySubtitle}>Toca + para registrar un saldo</Text>
+              <Text style={styles.emptyTitle}>{t.balances.noBalancesTitle}</Text>
+              <Text style={styles.emptySubtitle}>{t.balances.noBalancesSub}</Text>
             </View>
           }
         />
@@ -222,7 +225,7 @@ export default function SaldosScreen() {
                     styles.detailNetLabel,
                     { color: selectedGroup.net >= 0 ? Colors.success : Colors.danger },
                   ]}>
-                    {selectedGroup.net > 0 ? 'a tu favor' : selectedGroup.net < 0 ? 'debes' : 'saldado'}
+                    {selectedGroup.net > 0 ? t.balances.inYourFavor : selectedGroup.net < 0 ? t.balances.youOweTag : t.balances.settled}
                   </Text>
                 </View>
               </View>
@@ -248,7 +251,7 @@ export default function SaldosScreen() {
               ListEmptyComponent={
                 <View style={styles.center}>
                   <Text style={styles.emptyIcon}>◎</Text>
-                  <Text style={styles.emptyTitle}>Sin entradas</Text>
+                  <Text style={styles.emptyTitle}>{t.balances.noEntries}</Text>
                 </View>
               }
             />
@@ -261,38 +264,38 @@ export default function SaldosScreen() {
         <View style={styles.modalRoot}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setFormVisible(false)}>
-              <Text style={styles.cancel}>Cancelar</Text>
+              <Text style={styles.cancel}>{t.common.cancel}</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Nuevo saldo</Text>
+            <Text style={styles.modalTitle}>{t.balances.newBalance}</Text>
             <TouchableOpacity onPress={handleAdd} disabled={saving}>
               <Text style={[styles.save, saving && { opacity: 0.4 }]}>
-                {saving ? 'Guardando…' : 'Guardar'}
+                {saving ? t.common.saving : t.common.save}
               </Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-            <Text style={styles.fieldLabel}>Tipo</Text>
+            <Text style={styles.fieldLabel}>{t.balances.type}</Text>
             <View style={styles.segmented}>
-              {(['they-owe', 'i-owe'] as const).map((t) => (
+              {(['they-owe', 'i-owe'] as const).map((opt) => (
                 <TouchableOpacity
-                  key={t}
-                  style={[styles.segment, type === t && styles.segmentActive]}
-                  onPress={() => setType(t)}
+                  key={opt}
+                  style={[styles.segment, type === opt && styles.segmentActive]}
+                  onPress={() => setType(opt)}
                 >
-                  <Text style={[styles.segmentText, type === t && styles.segmentTextActive]}>
-                    {t === 'they-owe' ? 'Me deben' : 'Yo debo'}
+                  <Text style={[styles.segmentText, type === opt && styles.segmentTextActive]}>
+                    {opt === 'they-owe' ? t.balances.theyOweMe : t.balances.iOwe}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>Persona</Text>
+            <Text style={styles.fieldLabel}>{t.balances.person}</Text>
             <TextInput
               style={styles.input}
               value={personInput}
               onChangeText={setPersonInput}
-              placeholder="Nombre"
+              placeholder={t.common.name}
               placeholderTextColor={Colors.textMuted}
               autoCapitalize="words"
             />
@@ -323,7 +326,7 @@ export default function SaldosScreen() {
               </View>
             )}
 
-            <Text style={styles.fieldLabel}>Monto (CLP)</Text>
+            <Text style={styles.fieldLabel}>{t.balances.amountCLP}</Text>
             <TextInput
               style={[styles.input, styles.amountInput]}
               value={amount ? parseInt(amount, 10).toLocaleString('es-CL') : ''}
@@ -333,12 +336,12 @@ export default function SaldosScreen() {
               placeholderTextColor={Colors.textMuted}
             />
 
-            <Text style={styles.fieldLabel}>Descripción</Text>
+            <Text style={styles.fieldLabel}>{t.balances.description}</Text>
             <TextInput
               style={styles.input}
               value={description}
               onChangeText={setDescription}
-              placeholder="Opcional"
+              placeholder={t.common.optional}
               placeholderTextColor={Colors.textMuted}
             />
 

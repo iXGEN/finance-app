@@ -2,6 +2,7 @@ import React from 'react';
 import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import { Transaction } from '../../types';
 import { TransactionCard } from './TransactionCard';
+import { useT } from '../../services/i18n';
 import { Colors } from '../../constants/colors';
 
 interface Props {
@@ -29,6 +30,7 @@ function groupByWeek(transactions: Transaction[]): { week: number; items: Transa
 }
 
 export function TransactionList({ transactions, loading, onEdit, onDelete, onRefresh, emptyTitle, emptySubtitle }: Props) {
+  const t = useT();
   // Full-screen spinner only on the first load (no data yet); later refreshes keep
   // the list visible and surface progress through the pull-to-refresh control.
   if (loading && transactions.length === 0) {
@@ -43,8 +45,8 @@ export function TransactionList({ transactions, loading, onEdit, onDelete, onRef
     return (
       <View style={styles.center}>
         <Text style={styles.emptyIcon}>◎</Text>
-        <Text style={styles.emptyTitle}>{emptyTitle ?? 'Sin gastos'}</Text>
-        <Text style={styles.emptySubtitle}>{emptySubtitle ?? 'Toca + para agregar un gasto'}</Text>
+        <Text style={styles.emptyTitle}>{emptyTitle ?? t.tx.noExpenses}</Text>
+        <Text style={styles.emptySubtitle}>{emptySubtitle ?? t.tx.addHint}</Text>
       </View>
     );
   }
@@ -68,14 +70,14 @@ export function TransactionList({ transactions, loading, onEdit, onDelete, onRef
       }
       ListFooterComponent={
         <View style={styles.footer}>
-          <Text style={styles.footerLabel}>Total del mes</Text>
+          <Text style={styles.footerLabel}>{t.tx.monthTotal}</Text>
           <Text style={styles.footerTotal}>${total.toLocaleString('es-CL')}</Text>
         </View>
       }
       renderItem={({ item: group }) => (
         <View>
           <View style={styles.weekHeader}>
-            <Text style={styles.weekLabel}>Semana {group.week}</Text>
+            <Text style={styles.weekLabel}>{t.tx.week(group.week)}</Text>
             <Text style={styles.weekTotal}>
               ${group.items.reduce((s, t) => s + t.amount, 0).toLocaleString('es-CL')}
             </Text>

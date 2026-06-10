@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { useUserConfigStore } from '../../store/userConfigStore';
+import { useT } from '../../services/i18n';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -14,6 +15,7 @@ function icon(name: IoniconName) {
 }
 
 export default function TabLayout() {
+  const t = useT();
   const fetchConfig = useUserConfigStore((s) => s.fetch);
 
   useEffect(() => { fetchConfig(); }, []);
@@ -40,27 +42,27 @@ export default function TabLayout() {
       >
         <Tabs.Screen
           name="resumen"
-          options={{ title: 'Resumen', tabBarIcon: icon('pie-chart-outline') }}
+          options={{ title: t.tabs.resumen, tabBarIcon: icon('pie-chart-outline') }}
         />
         <Tabs.Screen
           name="gastos"
-          options={{ title: 'Gastos', tabBarIcon: icon('wallet-outline') }}
+          options={{ title: t.tabs.gastos, tabBarIcon: icon('wallet-outline') }}
         />
         <Tabs.Screen
           name="chat"
-          options={{ title: 'Chat IA', tabBarIcon: icon('chatbubbles-outline') }}
+          options={{ title: t.tabs.chat, tabBarIcon: icon('chatbubbles-outline') }}
         />
         <Tabs.Screen
           name="presupuesto"
-          options={{ title: 'Presupuesto', tabBarIcon: icon('stats-chart-outline') }}
+          options={{ title: t.tabs.presupuesto, tabBarIcon: icon('stats-chart-outline') }}
         />
         <Tabs.Screen
           name="deudas"
-          options={{ title: 'Saldos', tabBarIcon: icon('swap-horizontal-outline') }}
+          options={{ title: t.tabs.saldos, tabBarIcon: icon('swap-horizontal-outline') }}
         />
         <Tabs.Screen
           name="ajustes"
-          options={{ title: 'Ajustes', tabBarIcon: icon('settings-outline') }}
+          options={{ title: t.tabs.ajustes, tabBarIcon: icon('settings-outline') }}
         />
       </Tabs>
     </>

@@ -13,6 +13,8 @@ import DraggableFlatList, {
 import { Colors } from '../../constants/colors';
 import { useUserConfigStore } from '../../store/userConfigStore';
 import { countTransactionsByField } from '../../services/transactions';
+import { useT, LOCALES } from '../../services/i18n';
+import { useLocaleStore } from '../../store/localeStore';
 
 interface EditingItem {
   original: string;
@@ -30,6 +32,9 @@ function DragHandle() {
 }
 
 export default function SettingsScreen() {
+  const t = useT();
+  const locale = useLocaleStore((s) => s.locale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
   const {
     categories, paymentMethods,
     addCategory, removeCategory, renameCategory, reorderCategories,
@@ -51,7 +56,7 @@ export default function SettingsScreen() {
     if (!newName) { setEditingCat(null); return; }
     if (newName !== editingCategory.original) {
       if (categories.includes(newName)) {
-        Alert.alert('Ya existe', 'Esa categoría ya está en la lista.');
+        Alert.alert(t.settings.exists, t.settings.categoryExists);
         return;
       }
       await renameCategory(editingCategory.original, newName);
@@ -65,7 +70,7 @@ export default function SettingsScreen() {
     if (!newName) { setEditingPay(null); return; }
     if (newName !== editingPayment.original) {
       if (paymentMethods.includes(newName)) {
-        Alert.alert('Ya existe', 'Ese método ya está en la lista.');
+        Alert.alert(t.settings.exists, t.settings.methodExists);
         return;
       }
       await renamePaymentMethod(editingPayment.original, newName);
@@ -77,7 +82,7 @@ export default function SettingsScreen() {
     const val = newCategory.trim();
     if (!val) return;
     if (categories.includes(val)) {
-      Alert.alert('Ya existe', 'Esa categoría ya está en la lista.');
+      Alert.alert(t.settings.exists, t.settings.categoryExists);
       return;
     }
     setSavingCat(true);
@@ -93,12 +98,10 @@ export default function SettingsScreen() {
   const handleRemoveCategory = async (cat: string) => {
     let count = 0;
     try { count = await countTransactionsByField('category', cat); } catch {}
-    const warn = count > 0
-      ? `\n\nHay ${count} gasto${count === 1 ? '' : 's'} con esta categoría; conservarán el nombre "${cat}".`
-      : '';
-    Alert.alert('Eliminar categoría', `¿Eliminar "${cat}"?${warn}`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => removeCategory(cat) },
+    const warn = count > 0 ? t.settings.categoryInUse(count, cat) : '';
+    Alert.alert(t.settings.deleteCategoryTitle, `${t.settings.deleteConfirm(cat)}${warn}`, [
+      { text: t.common.cancel, style: 'cancel' },
+      { text: t.common.delete, style: 'destructive', onPress: () => removeCategory(cat) },
     ]);
   };
 
@@ -106,7 +109,7 @@ export default function SettingsScreen() {
     const val = newPayment.trim();
     if (!val) return;
     if (paymentMethods.includes(val)) {
-      Alert.alert('Ya existe', 'Ese método ya está en la lista.');
+      Alert.alert(t.settings.exists, t.settings.methodExists);
       return;
     }
     setSavingPay(true);
@@ -122,12 +125,10 @@ export default function SettingsScreen() {
   const handleRemovePayment = async (method: string) => {
     let count = 0;
     try { count = await countTransactionsByField('payment_method', method); } catch {}
-    const warn = count > 0
-      ? `\n\nHay ${count} gasto${count === 1 ? '' : 's'} con este método; conservarán el nombre "${method}".`
-      : '';
-    Alert.alert('Eliminar método', `¿Eliminar "${method}"?${warn}`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => removePaymentMethod(method) },
+    const warn = count > 0 ? t.settings.methodInUse(count, method) : '';
+    Alert.alert(t.settings.deleteMethodTitle, `${t.settings.deleteConfirm(method)}${warn}`, [
+      { text: t.common.cancel, style: 'cancel' },
+      { text: t.common.delete, style: 'destructive', onPress: () => removePaymentMethod(method) },
     ]);
   };
 
@@ -218,11 +219,31 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ajustes</Text>
+        <Text style={styles.headerTitle}>{t.settings.title}</Text>
       </View>
 
       <NestableScrollContainer contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.sectionTitle}>Categorías</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 4 }]}>{t.settings.language}</Text>
+        <View style={styles.section}>
+          <View style={styles.langRow}>
+            {LOCALES.map((l) => {
+              const active = locale === l.code;
+              return (
+                <TouchableOpacity
+                  key={l.code}
+                  style={[styles.langOption, active && styles.langOptionActive]}
+                  onPress={() => setLocale(l.code)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.langText, active && styles.langTextActive]}>{l.label}</Text>
+                  {active && <Text style={styles.langCheck}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>{t.settings.categories}</Text>
         <View style={styles.section}>
           <NestableDraggableFlatList
             data={categories}
@@ -237,7 +258,7 @@ export default function SettingsScreen() {
                 style={styles.addInput}
                 value={newCategory}
                 onChangeText={setNewCategory}
-                placeholder="Nueva categoría"
+                placeholder={t.settings.newCategory}
                 placeholderTextColor={Colors.textMuted}
                 autoFocus
                 onSubmitEditing={handleAddCategory}
@@ -245,7 +266,7 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={handleAddCategory} disabled={savingCategory} style={styles.confirmBtn}>
                 {savingCategory
                   ? <ActivityIndicator size="small" color={Colors.background} />
-                  : <Text style={styles.confirmBtnText}>Agregar</Text>
+                  : <Text style={styles.confirmBtnText}>{t.common.add}</Text>
                 }
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setAddingCat(false); setNewCategory(''); }} style={styles.cancelBtn}>
@@ -254,12 +275,12 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <TouchableOpacity style={styles.addTrigger} onPress={() => setAddingCat(true)}>
-              <Text style={styles.addTriggerText}>+ Agregar categoría</Text>
+              <Text style={styles.addTriggerText}>{t.settings.addCategory}</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <Text style={styles.sectionTitle}>Métodos de pago</Text>
+        <Text style={styles.sectionTitle}>{t.settings.paymentMethods}</Text>
         <View style={styles.section}>
           <NestableDraggableFlatList
             data={paymentMethods}
@@ -274,7 +295,7 @@ export default function SettingsScreen() {
                 style={styles.addInput}
                 value={newPayment}
                 onChangeText={setNewPayment}
-                placeholder="Nuevo método"
+                placeholder={t.settings.newMethod}
                 placeholderTextColor={Colors.textMuted}
                 autoFocus
                 onSubmitEditing={handleAddPayment}
@@ -282,7 +303,7 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={handleAddPayment} disabled={savingPayment} style={styles.confirmBtn}>
                 {savingPayment
                   ? <ActivityIndicator size="small" color={Colors.background} />
-                  : <Text style={styles.confirmBtnText}>Agregar</Text>
+                  : <Text style={styles.confirmBtnText}>{t.common.add}</Text>
                 }
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setAddingPay(false); setNewPayment(''); }} style={styles.cancelBtn}>
@@ -291,7 +312,7 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <TouchableOpacity style={styles.addTrigger} onPress={() => setAddingPay(true)}>
-              <Text style={styles.addTriggerText}>+ Agregar método</Text>
+              <Text style={styles.addTriggerText}>{t.settings.addMethod}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -340,6 +361,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: 'hidden',
+  },
+  langRow: {
+    flexDirection: 'row',
+  },
+  langOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  langOptionActive: {
+    backgroundColor: Colors.primaryDim,
+  },
+  langText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  langTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  langCheck: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '800',
   },
   row: {
     flexDirection: 'row',

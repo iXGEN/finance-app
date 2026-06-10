@@ -6,8 +6,10 @@ import {
 import { router } from 'expo-router';
 import { supabase } from '../../services/supabase';
 import { Colors } from '../../constants/colors';
+import { useT } from '../../services/i18n';
 
 export default function LoginScreen() {
+  const t = useT();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,7 +17,7 @@ export default function LoginScreen() {
 
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Ingresa email y contraseña');
+      Alert.alert(t.common.error, t.login.missingFields);
       return;
     }
     setLoading(true);
@@ -26,11 +28,11 @@ export default function LoginScreen() {
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        Alert.alert('Cuenta creada', 'Revisa tu email para confirmar la cuenta.');
+        Alert.alert(t.login.accountCreatedTitle, t.login.accountCreatedMsg);
       }
       router.replace('/(tabs)/resumen');
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? String(err));
+      Alert.alert(t.common.error, err.message ?? String(err));
     } finally {
       setLoading(false);
     }
@@ -43,13 +45,13 @@ export default function LoginScreen() {
     >
       <View style={styles.card}>
         <Text style={styles.title}>💸 Finance</Text>
-        <Text style={styles.subtitle}>Control de gastos personales</Text>
+        <Text style={styles.subtitle}>{t.login.subtitle}</Text>
 
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="Email"
+          placeholder={t.login.email}
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
@@ -58,14 +60,14 @@ export default function LoginScreen() {
           style={styles.input}
           value={password}
           onChangeText={setPassword}
-          placeholder="Contraseña"
+          placeholder={t.login.password}
           secureTextEntry
           autoComplete="password"
         />
 
         <TouchableOpacity style={styles.btn} onPress={handleAuth} disabled={loading}>
           <Text style={styles.btnText}>
-            {loading ? 'Cargando…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
+            {loading ? t.common.loading : mode === 'login' ? t.login.enter : t.login.createAccount}
           </Text>
         </TouchableOpacity>
 
@@ -74,7 +76,7 @@ export default function LoginScreen() {
           onPress={() => setMode(mode === 'login' ? 'register' : 'login')}
         >
           <Text style={styles.switchText}>
-            {mode === 'login' ? '¿Sin cuenta? Crear una' : '¿Ya tienes cuenta? Entrar'}
+            {mode === 'login' ? t.login.noAccount : t.login.hasAccount}
           </Text>
         </TouchableOpacity>
       </View>

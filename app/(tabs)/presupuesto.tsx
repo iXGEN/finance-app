@@ -8,11 +8,13 @@ import { BudgetCard } from '../../components/budget/BudgetCard';
 import { useBudgetStore } from '../../store/budgetStore';
 import { getBudgetConfigs, copyBudget } from '../../services/budget';
 import { addMonths, formatMonthLong } from '../../services/dates';
+import { useT } from '../../services/i18n';
 import { Colors } from '../../constants/colors';
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export default function BudgetScreen() {
+  const t = useT();
   const { summary, loading, fetchSummary, upsertBudget } = useBudgetStore();
   const [month, setMonth] = useState(() => new Date().toISOString().substring(0, 7));
   const [copyHint, setCopyHint] = useState<{ from: string; count: number } | null>(null);
@@ -49,7 +51,7 @@ export default function BudgetScreen() {
       await copyBudget(copyHint.from, month);
       await fetchSummary(month);
     } catch (e) {
-      Alert.alert('Error', String(e));
+      Alert.alert(t.common.error, String(e));
     } finally {
       setCopying(false);
     }
@@ -62,19 +64,19 @@ export default function BudgetScreen() {
       {totalBudget > 0 && (
         <View style={styles.totals}>
           <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Gastado</Text>
+            <Text style={styles.totalLabel}>{t.budget.spent}</Text>
             <Text style={[styles.totalValue, over && { color: Colors.danger }]}>
               ${totalSpent.toLocaleString('es-CL')}
             </Text>
           </View>
           <View style={styles.totalDivider} />
           <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Presupuesto</Text>
+            <Text style={styles.totalLabel}>{t.budget.budget}</Text>
             <Text style={styles.totalValue}>${totalBudget.toLocaleString('es-CL')}</Text>
           </View>
           <View style={styles.totalDivider} />
           <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Disponible</Text>
+            <Text style={styles.totalLabel}>{t.budget.available}</Text>
             <Text style={[styles.totalValue, { color: available >= 0 ? Colors.primary : Colors.danger }]}>
               ${Math.abs(available).toLocaleString('es-CL')}
             </Text>
@@ -86,12 +88,12 @@ export default function BudgetScreen() {
         <TouchableOpacity style={styles.copyBanner} onPress={handleCopyBudget} disabled={copying} activeOpacity={0.85}>
           <Ionicons name="copy-outline" size={18} color={Colors.primary} />
           <View style={styles.copyTextWrap}>
-            <Text style={styles.copyTitle}>Copiar presupuesto del mes anterior</Text>
+            <Text style={styles.copyTitle}>{t.budget.copyTitle}</Text>
             <Text style={styles.copySub}>
-              {copyHint.count} categoría{copyHint.count === 1 ? '' : 's'} de {formatMonthLong(copyHint.from)}
+              {t.budget.copySub(copyHint.count, formatMonthLong(copyHint.from))}
             </Text>
           </View>
-          <Text style={styles.copyAction}>{copying ? '…' : 'Copiar'}</Text>
+          <Text style={styles.copyAction}>{copying ? '…' : t.budget.copy}</Text>
         </TouchableOpacity>
       )}
 
@@ -122,8 +124,8 @@ export default function BudgetScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Text style={styles.emptyIcon}>◎</Text>
-              <Text style={styles.emptyTitle}>Sin datos este mes</Text>
-              <Text style={styles.emptySubtitle}>Toca una categoría para asignar un presupuesto</Text>
+              <Text style={styles.emptyTitle}>{t.budget.noDataTitle}</Text>
+              <Text style={styles.emptySubtitle}>{t.budget.noDataSub}</Text>
             </View>
           }
         />

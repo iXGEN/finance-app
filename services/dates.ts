@@ -1,14 +1,33 @@
 // Shared date helpers. Months are "YYYY-MM", dates are "YYYY-MM-DD".
 
-const MONTHS_LONG = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-];
+import { useLocaleStore } from '../store/localeStore';
+import type { Locale } from './i18n';
 
-const MONTHS_SHORT = [
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
-];
+const MONTHS_LONG: Record<Locale, string[]> = {
+  es: [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ],
+  en: [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ],
+};
+
+const MONTHS_SHORT: Record<Locale, string[]> = {
+  es: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+};
+
+const DAYS_SHORT: Record<Locale, string[]> = {
+  es: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+};
+
+/** The active locale, read non-reactively (these helpers run during render). */
+function activeLocale(): Locale {
+  return useLocaleStore.getState().locale;
+}
 
 export function today(): string {
   return new Date().toISOString().substring(0, 10);
@@ -36,16 +55,32 @@ export function pastMonths(n: number): string[] {
   return months;
 }
 
-/** "junio 2026" (lowercase month). */
-export function formatMonthLong(month: string): string {
+/** "junio 2026" / "June 2026". */
+export function formatMonthLong(month: string, locale: Locale = activeLocale()): string {
   const [year, m] = month.split('-').map(Number);
-  return `${MONTHS_LONG[m - 1] ?? ''} ${year}`;
+  return `${MONTHS_LONG[locale][m - 1] ?? ''} ${year}`;
 }
 
-/** "jun" — short month label. */
-export function formatMonthShort(month: string): string {
+/** "jun" / "Jun" — short month label. */
+export function formatMonthShort(month: string, locale: Locale = activeLocale()): string {
   const m = Number(month.split('-')[1]);
-  return MONTHS_SHORT[m - 1] ?? '';
+  return MONTHS_SHORT[locale][m - 1] ?? '';
+}
+
+/** Short month name from a 1-based month number ("YYYY-MM-DD" uses these). */
+export function shortMonthName(monthNumber: number, locale: Locale = activeLocale()): string {
+  return MONTHS_SHORT[locale][monthNumber - 1] ?? '';
+}
+
+/** Long, human date for a "YYYY-MM-DD" string: "Lun, 9 de junio 2026" / "Mon, June 9, 2026". */
+export function formatFullDate(dateStr: string, locale: Locale = activeLocale()): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = DAYS_SHORT[locale][d.getDay()];
+  const monthName = MONTHS_LONG[locale][d.getMonth()];
+  if (locale === 'en') {
+    return `${day}, ${monthName} ${d.getDate()}, ${d.getFullYear()}`;
+  }
+  return `${day}, ${d.getDate()} de ${monthName} ${d.getFullYear()}`;
 }
 
 /** The `n` months ending at (and including) `month`, oldest first. */
