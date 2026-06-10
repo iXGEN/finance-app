@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform, RefreshControl } from 'react-native';
 import { Transaction } from '../../types';
 import { TransactionCard } from './TransactionCard';
 import { Colors } from '../../constants/colors';
@@ -9,6 +9,9 @@ interface Props {
   loading: boolean;
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
+  onRefresh?: () => void;
+  emptyTitle?: string;
+  emptySubtitle?: string;
 }
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -25,8 +28,10 @@ function groupByWeek(transactions: Transaction[]): { week: number; items: Transa
     .map(([week, items]) => ({ week, items }));
 }
 
-export function TransactionList({ transactions, loading, onEdit, onDelete }: Props) {
-  if (loading) {
+export function TransactionList({ transactions, loading, onEdit, onDelete, onRefresh, emptyTitle, emptySubtitle }: Props) {
+  // Full-screen spinner only on the first load (no data yet); later refreshes keep
+  // the list visible and surface progress through the pull-to-refresh control.
+  if (loading && transactions.length === 0) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={Colors.primary} />
@@ -38,8 +43,8 @@ export function TransactionList({ transactions, loading, onEdit, onDelete }: Pro
     return (
       <View style={styles.center}>
         <Text style={styles.emptyIcon}>◎</Text>
-        <Text style={styles.emptyTitle}>Sin gastos</Text>
-        <Text style={styles.emptySubtitle}>Toca + para agregar un gasto</Text>
+        <Text style={styles.emptyTitle}>{emptyTitle ?? 'Sin gastos'}</Text>
+        <Text style={styles.emptySubtitle}>{emptySubtitle ?? 'Toca + para agregar un gasto'}</Text>
       </View>
     );
   }
@@ -51,6 +56,16 @@ export function TransactionList({ transactions, loading, onEdit, onDelete }: Pro
     <FlatList
       data={groups}
       keyExtractor={(g) => String(g.week)}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        ) : undefined
+      }
       ListFooterComponent={
         <View style={styles.footer}>
           <Text style={styles.footerLabel}>Total del mes</Text>
