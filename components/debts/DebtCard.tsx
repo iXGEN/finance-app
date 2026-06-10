@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, Platform } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { Debt } from '../../types';
 import { Colors } from '../../constants/colors';
+import { useT } from '../../services/i18n';
 
 interface Props {
   debt: Debt;
@@ -13,6 +14,7 @@ interface Props {
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export function DebtCard({ debt, onMarkPaid, onDelete }: Props) {
+  const t = useT();
   const [confirmVisible, setConfirmVisible] = useState(false);
   const positive = debt.amount > 0;
   const accentColor = positive ? Colors.success : Colors.danger;
@@ -26,7 +28,7 @@ export function DebtCard({ debt, onMarkPaid, onDelete }: Props) {
         <View style={styles.info}>
           <Text style={styles.person}>{debt.person}</Text>
           <Text style={[styles.desc, !debt.description && styles.descEmpty]} numberOfLines={2}>
-            {debt.description || 'Sin descripción'}
+            {debt.description || t.balances.noDescription}
           </Text>
           <Text style={styles.date}>{debt.date}</Text>
         </View>
@@ -34,7 +36,7 @@ export function DebtCard({ debt, onMarkPaid, onDelete }: Props) {
         <View style={styles.right}>
           <View style={[styles.amountBadge, { backgroundColor: accentDim }]}>
             <Text style={[styles.direction, { color: accentColor }]}>
-              {positive ? 'a tu favor' : 'debes'}
+              {positive ? t.balances.inYourFavor : t.balances.youOweTag}
             </Text>
             <Text style={[styles.amount, { color: accentColor, fontFamily: MONO }]}>
               {positive ? '+' : '−'}${Math.abs(debt.amount).toLocaleString('es-CL')}
@@ -57,9 +59,9 @@ export function DebtCard({ debt, onMarkPaid, onDelete }: Props) {
             <View style={styles.dialogIcon}>
               <Ionicons name="trash-outline" size={26} color={Colors.danger} />
             </View>
-            <Text style={styles.dialogTitle}>Eliminar deuda</Text>
+            <Text style={styles.dialogTitle}>{t.balances.deleteTitle}</Text>
             <Text style={styles.dialogBody}>
-              {positive ? 'A tu favor con' : 'Le debes a'}{' '}
+              {positive ? t.balances.inYourFavorWith : t.balances.youOweTo}{' '}
               <Text style={styles.dialogPerson}>{debt.person}</Text>
               {debt.description ? `\n${debt.description}` : ''}
               {'\n'}
@@ -69,13 +71,13 @@ export function DebtCard({ debt, onMarkPaid, onDelete }: Props) {
             </Text>
             <View style={styles.dialogActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setConfirmVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+                <Text style={styles.cancelBtnText}>{t.common.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteBtn}
                 onPress={() => { setConfirmVisible(false); onDelete(debt.id); }}
               >
-                <Text style={styles.deleteBtnText}>Eliminar</Text>
+                <Text style={styles.deleteBtnText}>{t.common.delete}</Text>
               </TouchableOpacity>
             </View>
           </View>

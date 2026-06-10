@@ -4,6 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Transaction, parseSplit } from '../../types';
 import { Colors } from '../../constants/colors';
 import { CATEGORY_COLORS } from '../../constants/categories';
+import { shortMonthName } from '../../services/dates';
+import { useT } from '../../services/i18n';
+import { useLocaleStore } from '../../store/localeStore';
 
 interface Props {
   transaction: Transaction;
@@ -12,24 +15,19 @@ interface Props {
 }
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
-const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 function formatAmount(amount: number): string {
   return `$${amount.toLocaleString('es-CL')}`;
 }
 
-function parseDate(date: string): { day: string; month: string } {
-  const [, m, d] = date.split('-');
-  return {
-    day: parseInt(d, 10).toString(),
-    month: MONTHS[parseInt(m, 10) - 1] ?? '',
-  };
-}
-
 export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
+  const t = useT();
+  const locale = useLocaleStore((s) => s.locale);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const categoryColor = CATEGORY_COLORS[transaction.category] ?? Colors.primary;
-  const { day, month } = parseDate(transaction.date);
+  const [, m, d] = transaction.date.split('-');
+  const day = parseInt(d, 10).toString();
+  const month = shortMonthName(parseInt(m, 10), locale);
   const splitData = parseSplit(transaction.notes);
 
   return (
@@ -58,12 +56,12 @@ export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
             ) : null}
             {transaction.is_fixed ? (
               <View style={styles.fixedBadge}>
-                <Text style={styles.fixedText}>FIJO</Text>
+                <Text style={styles.fixedText}>{t.tx.fixedBadge}</Text>
               </View>
             ) : null}
             {splitData ? (
               <View style={styles.splitBadge}>
-                <Text style={styles.splitText}>DIVIDIDO</Text>
+                <Text style={styles.splitText}>{t.tx.splitBadge}</Text>
               </View>
             ) : null}
           </View>
@@ -73,7 +71,7 @@ export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
           <Text style={[styles.amount, { color: categoryColor }]}>{formatAmount(transaction.amount)}</Text>
           {splitData && (
             <Text style={styles.splitTotal}>
-              de ${splitData.total.toLocaleString('es-CL')}
+              {t.tx.ofTotal(`$${splitData.total.toLocaleString('es-CL')}`)}
             </Text>
           )}
           <View style={styles.actions}>
@@ -93,7 +91,7 @@ export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
             <View style={[styles.dialogIcon, { backgroundColor: Colors.danger + '15' }]}>
               <Ionicons name="trash-outline" size={26} color={Colors.danger} />
             </View>
-            <Text style={styles.dialogTitle}>Eliminar gasto</Text>
+            <Text style={styles.dialogTitle}>{t.tx.deleteExpenseTitle}</Text>
             <Text style={styles.dialogBody}>
               {transaction.category}
               {transaction.description ? `\n${transaction.description}` : ''}
@@ -107,13 +105,13 @@ export function TransactionCard({ transaction, onEdit, onDelete }: Props) {
                 style={styles.cancelBtn}
                 onPress={() => setConfirmVisible(false)}
               >
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
+                <Text style={styles.cancelBtnText}>{t.common.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteBtn}
                 onPress={() => { setConfirmVisible(false); onDelete(transaction.id); }}
               >
-                <Text style={styles.deleteBtnText}>Eliminar</Text>
+                <Text style={styles.deleteBtnText}>{t.common.delete}</Text>
               </TouchableOpacity>
             </View>
           </View>

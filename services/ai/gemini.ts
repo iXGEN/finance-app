@@ -1,6 +1,7 @@
 import Groq from 'groq-sdk';
 import { fetch } from 'expo/fetch';
 import { toolDefinitions, executeTool } from './tools';
+import type { Locale } from '../i18n';
 
 const MODEL = 'llama-3.3-70b-versatile';
 
@@ -14,6 +15,7 @@ export interface ChatContext {
   categories: string[];
   paymentMethods: string[];
   persons: string[];
+  locale: Locale;
 }
 
 function buildSystemPrompt(ctx: ChatContext): string {
@@ -21,6 +23,7 @@ function buildSystemPrompt(ctx: ChatContext): string {
   const cats = ctx.categories.length ? ctx.categories.join(', ') : '(ninguna aún)';
   const pms = ctx.paymentMethods.length ? ctx.paymentMethods.join(', ') : '(ninguno aún)';
   const persons = ctx.persons.length ? ctx.persons.join(', ') : '(ninguna aún)';
+  const replyLanguage = ctx.locale === 'en' ? 'English' : 'Spanish';
 
   return `You are a personal finance assistant for a mobile app in Chilean pesos (CLP). You can fully operate the app on the user's behalf through the available tools — anything the user could do by hand in the app, you can do.
 
@@ -46,7 +49,7 @@ Rules:
 - To edit, delete, mark paid, or settle anything, you MUST first call get_transactions or get_debt_summary to find the real id, then act with that id. Never call update_transaction, delete_transaction, mark_debt_paid, or delete_debt with an invented id.
 - Before deleting anything, briefly confirm which item with the user unless they were already explicit.
 - If no date is given, use today (${now.toISOString().substring(0, 10)}). Current month: ${now.toISOString().substring(0, 7)}.
-- Respond in Spanish. Be concise and confirm what you did with concrete amounts and names.`;
+- Respond in ${replyLanguage}. Be concise and confirm what you did with concrete amounts and names.`;
 }
 
 function isRetryableError(msg: string): boolean {

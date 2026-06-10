@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { ChatMessage } from '../../types';
 import { Colors } from '../../constants/colors';
+import { useT } from '../../services/i18n';
 
 interface Props {
   message: ChatMessage;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function MessageBubble({ message, onRetry }: Props) {
+  const t = useT();
   const isUser = message.role === 'user';
 
   return (
@@ -28,7 +30,7 @@ export function MessageBubble({ message, onRetry }: Props) {
       </View>
       {message.isError && onRetry && (
         <TouchableOpacity style={styles.retryBtn} onPress={onRetry}>
-          <Text style={styles.retryText}>↻ Reintentar</Text>
+          <Text style={styles.retryText}>↻ {t.chat.retry}</Text>
         </TouchableOpacity>
       )}
     </View>

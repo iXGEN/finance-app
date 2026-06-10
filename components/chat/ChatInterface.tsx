@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, TextInput, TouchableOpacity, FlatList,
   StyleSheet, KeyboardAvoidingView, Platform, Text,
@@ -11,17 +11,21 @@ import { useTransactionsStore } from '../../store/transactionsStore';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useDebtsStore } from '../../store/debtsStore';
 import { useUserConfigStore } from '../../store/userConfigStore';
+import { useT } from '../../services/i18n';
+import { useLocaleStore } from '../../store/localeStore';
 
 function uid(): string {
   return Math.random().toString(36).substring(2);
 }
 
 export function ChatInterface() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const t = useT();
+  const locale = useLocaleStore((s) => s.locale);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: uid(),
       role: 'assistant',
-      content: 'Hola! Puedo manejar toda la app por ti: registrar gastos (fijos, divididos o "Deuda"), editarlos y borrarlos, ajustar el presupuesto por categoría, ver y saldar tus Saldos, comparar meses, y administrar categorías y métodos de pago. ¿En qué te ayudo?',
+      content: t.chat.welcome,
       timestamp: new Date(),
     },
   ]);
@@ -38,6 +42,15 @@ export function ChatInterface() {
   const paymentMethods = useUserConfigStore((s) => s.paymentMethods);
   const persons = useUserConfigStore((s) => s.persons);
 
+  // Keep the greeting in the active language until the user actually starts chatting.
+  useEffect(() => {
+    setMessages((prev) =>
+      prev.length === 1 && prev[0].role === 'assistant'
+        ? [{ ...prev[0], content: t.chat.welcome }]
+        : prev,
+    );
+  }, [locale]);
+
   const history: ConversationMessage[] = messages
     .filter((m) => !m.isLoading && !m.isError)
     .map((m) => ({ role: m.role, content: m.content }));
@@ -51,7 +64,7 @@ export function ChatInterface() {
 
     setLoading(true);
     try {
-      const response = await sendMessage(text, history, { categories, paymentMethods, persons }, (partial) => {
+      const response = await sendMessage(text, history, { categories, paymentMethods, persons, locale }, (partial) => {
         setMessages((prev) =>
           prev.map((m) => m.id === loadingId ? { ...m, content: partial, isLoading: false } : m),
         );
@@ -69,7 +82,7 @@ export function ChatInterface() {
         fetchConfig(),
       ]);
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Ocurrió un error inesperado.';
+      const errMsg = err instanceof Error ? err.message : t.chat.unexpectedError;
       setMessages((prev) =>
         prev.map((m) =>
           m.id === loadingId
@@ -81,7 +94,7 @@ export function ChatInterface() {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [history, refreshTransactions, fetchBudget, fetchDebts, fetchConfig, selectedMonth, categories, paymentMethods, persons]);
+  }, [history, refreshTransactions, fetchBudget, fetchDebts, fetchConfig, selectedMonth, categories, paymentMethods, persons, locale, t]);
 
   const sendMsg = useCallback(async () => {
     const text = input.trim();
@@ -125,7 +138,7 @@ export function ChatInterface() {
           style={styles.input}
           value={input}
           onChangeText={setInput}
-          placeholder="Escribe un gasto o pregunta…"
+          placeholder={t.chat.placeholder}
           placeholderTextColor={Colors.textMuted}
           multiline
           maxLength={500}

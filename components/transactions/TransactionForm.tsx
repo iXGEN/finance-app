@@ -10,6 +10,9 @@ import { Transaction, TransactionInsert, SplitEntry, parseSplit, encodeSplit } f
 import { useUserConfigStore } from '../../store/userConfigStore';
 import { useDebtsStore } from '../../store/debtsStore';
 import { CATEGORY_COLORS } from '../../constants/categories';
+import { formatFullDate } from '../../services/dates';
+import { useT } from '../../services/i18n';
+import { useLocaleStore } from '../../store/localeStore';
 
 const DEBT_PAYMENT_METHOD = 'Deuda';
 
@@ -29,14 +32,6 @@ function todayStr(): string {
   return new Date().toISOString().substring(0, 10);
 }
 
-const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MONTHS_LONG = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-
-function formatDateDisplay(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  return `${DAYS[d.getDay()]}, ${d.getDate()} de ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
-}
-
 function SearchableChips({
   items,
   selected,
@@ -52,6 +47,7 @@ function SearchableChips({
   getColor?: (item: string) => string;
   placeholder: string;
 }) {
+  const t = useT();
   const [search, setSearch] = useState('');
   const filtered = search.trim()
     ? items.filter((i) => i.toLowerCase().includes(search.toLowerCase()))
@@ -110,12 +106,12 @@ function SearchableChips({
         {canAdd && (
           <TouchableOpacity style={[styles.chip, styles.chipAdd]} onPress={handleAdd}>
             <Ionicons name="add" size={14} color={Colors.primary} />
-            <Text style={styles.chipAddText}>Agregar "{search.trim()}"</Text>
+            <Text style={styles.chipAddText}>{t.tx.addItem(search.trim())}</Text>
           </TouchableOpacity>
         )}
 
         {filtered.length === 0 && !canAdd && (
-          <Text style={styles.noResults}>Sin resultados</Text>
+          <Text style={styles.noResults}>{t.common.noResults}</Text>
         )}
       </View>
     </View>
@@ -123,6 +119,8 @@ function SearchableChips({
 }
 
 export function TransactionForm({ visible, onClose, onSubmit, initialValues }: Props) {
+  const t = useT();
+  const locale = useLocaleStore((s) => s.locale);
   const { categories, paymentMethods, persons, addCategory, addPaymentMethod, addPerson } = useUserConfigStore();
   const { addDebt, deleteDebt } = useDebtsStore();
 
@@ -224,7 +222,7 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
   const handleSubmit = async () => {
     const amountNum = parseInt(amount.replace(/\D/g, ''), 10);
     if (!amountNum || amountNum <= 0) {
-      Alert.alert('Error', 'Ingresa un monto válido');
+      Alert.alert(t.common.error, t.tx.validAmount);
       return;
     }
 
@@ -234,11 +232,11 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
     if (splitEnabled) {
       const myPart = parseInt(splitParticipants[0]?.amount?.replace(/\D/g, '') ?? '', 10);
       if (!myPart || myPart <= 0) {
-        Alert.alert('Error', 'Ingresa tu parte del gasto');
+        Alert.alert(t.common.error, t.tx.enterYourPart);
         return;
       }
       if (splitRemaining !== 0) {
-        Alert.alert('Error', `Las partes no suman el total ($${amountNum.toLocaleString('es-CL')})`);
+        Alert.alert(t.common.error, t.tx.partsDontSum(`$${amountNum.toLocaleString('es-CL')}`));
         return;
       }
       txAmount = myPart;
@@ -300,7 +298,7 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
 
       onClose();
     } catch (err) {
-      Alert.alert('Error', String(err));
+      Alert.alert(t.common.error, String(err));
     } finally {
       setSaving(false);
     }
@@ -311,21 +309,21 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
       <View style={styles.root}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerBtn}>
-            <Text style={styles.cancel}>Cancelar</Text>
+            <Text style={styles.cancel}>{t.common.cancel}</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>{isEditing ? 'Editar gasto' : 'Nuevo gasto'}</Text>
+          <Text style={styles.title}>{isEditing ? t.tx.editExpense : t.tx.newExpense}</Text>
           <TouchableOpacity onPress={handleSubmit} disabled={saving} style={styles.headerBtn}>
             <Text style={[styles.save, saving && styles.disabled]}>
-              {saving ? 'Guardando…' : 'Guardar'}
+              {saving ? t.common.saving : t.common.save}
             </Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
-          <Label>Fecha</Label>
+          <Label>{t.tx.date}</Label>
           <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
             <Ionicons name="calendar-outline" size={17} color={Colors.primary} />
-            <Text style={styles.dateBtnText}>{formatDateDisplay(date)}</Text>
+            <Text style={styles.dateBtnText}>{formatFullDate(date, locale)}</Text>
           </TouchableOpacity>
 
           {showDatePicker && Platform.OS === 'android' && (
@@ -345,9 +343,9 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
               <TouchableOpacity style={styles.dateOverlay} activeOpacity={1} onPress={() => setShowDatePicker(false)}>
                 <View style={styles.dateSheet}>
                   <View style={styles.dateSheetHeader}>
-                    <Text style={styles.dateSheetTitle}>Seleccionar fecha</Text>
+                    <Text style={styles.dateSheetTitle}>{t.tx.selectDate}</Text>
                     <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Text style={styles.dateSheetDone}>Listo</Text>
+                      <Text style={styles.dateSheetDone}>{t.common.done}</Text>
                     </TouchableOpacity>
                   </View>
                   <DateTimePicker
@@ -366,7 +364,7 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
             </Modal>
           )}
 
-          <Label>{splitEnabled ? 'Monto total (CLP)' : 'Monto (CLP)'}</Label>
+          <Label>{splitEnabled ? t.tx.totalAmountCLP : t.tx.amountCLP}</Label>
           <TextInput
             style={[styles.input, styles.amountInput]}
             value={amount ? parseInt(amount, 10).toLocaleString('es-CL') : ''}
@@ -376,43 +374,43 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
             keyboardType="numeric"
           />
 
-          <Label>Categoría</Label>
+          <Label>{t.tx.category}</Label>
           <SearchableChips
             items={categories}
             selected={category}
             onSelect={setCategory}
             onAdd={addCategory}
             getColor={(cat) => CATEGORY_COLORS[cat] ?? Colors.primary}
-            placeholder="Buscar o agregar categoría…"
+            placeholder={t.tx.searchAddCategory}
           />
 
-          <Label>Descripción</Label>
+          <Label>{t.tx.description}</Label>
           <TextInput
             style={styles.input}
             value={description}
             onChangeText={setDescription}
-            placeholder="Opcional"
+            placeholder={t.common.optional}
             placeholderTextColor={Colors.textMuted}
           />
 
-          <Label>Método de pago</Label>
+          <Label>{t.tx.paymentMethod}</Label>
           <SearchableChips
             items={paymentMethods}
             selected={paymentMethod}
             onSelect={setPaymentMethod}
             onAdd={addPaymentMethod}
-            placeholder="Buscar o agregar método…"
+            placeholder={t.tx.searchAddMethod}
           />
 
           {/* Debt person picker — shown when payment method is "Deuda" */}
           {isDebtMethod && (
             <View style={styles.debtSection}>
-              <Label>¿Quién te debe?</Label>
+              <Label>{t.tx.whoOwesYou}</Label>
               <TextInput
                 style={styles.input}
                 value={debtPerson}
                 onChangeText={setDebtPerson}
-                placeholder="Nombre de la persona"
+                placeholder={t.tx.personName}
                 placeholderTextColor={Colors.textMuted}
                 autoCapitalize="words"
               />
@@ -438,7 +436,7 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
               <View style={styles.debtNote}>
                 <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
                 <Text style={styles.debtNoteText}>
-                  Se registrará el gasto completo y se añadirá a Saldos como "te deben"
+                  {t.tx.debtNote}
                 </Text>
               </View>
             </View>
@@ -449,7 +447,7 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
             <View style={styles.splitToggleLabel}>
               <Ionicons name="git-branch-outline" size={18} color={splitEnabled ? Colors.primary : Colors.textMuted} />
               <Text style={[styles.switchLabel, splitEnabled && { color: Colors.primary }]}>
-                Dividir gasto
+                {t.tx.splitExpense}
               </Text>
             </View>
             <Switch
@@ -468,7 +466,9 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
             <View style={styles.splitSection}>
               {/* Status bar */}
               <View style={styles.splitStatus}>
-                <Text style={styles.splitStatusLabel}>Total: ${totalAmount.toLocaleString('es-CL')}</Text>
+                <Text style={styles.splitStatusLabel}>
+                  {t.tx.splitTotal(`$${totalAmount.toLocaleString('es-CL')}`)}
+                </Text>
                 {totalAmount > 0 && (
                   <View style={[
                     styles.splitBadge,
@@ -479,10 +479,10 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
                       { color: splitRemaining === 0 ? Colors.success : Colors.danger },
                     ]}>
                       {splitRemaining === 0
-                        ? '✓ Completo'
+                        ? t.tx.splitComplete
                         : splitRemaining > 0
-                          ? `Falta $${splitRemaining.toLocaleString('es-CL')}`
-                          : `Exceso $${Math.abs(splitRemaining).toLocaleString('es-CL')}`}
+                          ? t.tx.splitMissing(`$${splitRemaining.toLocaleString('es-CL')}`)
+                          : t.tx.splitExcess(`$${Math.abs(splitRemaining).toLocaleString('es-CL')}`)}
                     </Text>
                   </View>
                 )}
@@ -495,14 +495,14 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
                     {i === 0 ? (
                       <View style={styles.splitMeTag}>
                         <Ionicons name="person" size={12} color={Colors.primary} />
-                        <Text style={styles.splitMeText}>Yo</Text>
+                        <Text style={styles.splitMeText}>{t.tx.me}</Text>
                       </View>
                     ) : (
                       <TextInput
                         style={styles.splitNameInput}
                         value={p.name}
                         onChangeText={(text) => updateSplitParticipant(i, 'name', text)}
-                        placeholder="Nombre"
+                        placeholder={t.common.name}
                         placeholderTextColor={Colors.textMuted}
                         autoCapitalize="words"
                       />
@@ -528,13 +528,13 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
               <View style={styles.splitActions}>
                 <TouchableOpacity style={styles.addPersonBtn} onPress={addSplitPerson}>
                   <Ionicons name="person-add-outline" size={15} color={Colors.primary} />
-                  <Text style={styles.addPersonBtnText}>Agregar persona</Text>
+                  <Text style={styles.addPersonBtnText}>{t.tx.addPerson}</Text>
                 </TouchableOpacity>
 
                 {splitParticipants.length > 1 && totalAmount > 0 && (
                   <TouchableOpacity style={styles.equalSplitBtn} onPress={splitEqually}>
                     <Ionicons name="git-merge-outline" size={14} color={Colors.textSecondary} />
-                    <Text style={styles.equalSplitBtnText}>Partes iguales</Text>
+                    <Text style={styles.equalSplitBtnText}>{t.tx.equalParts}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -542,14 +542,14 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
               <View style={styles.debtNote}>
                 <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
                 <Text style={styles.debtNoteText}>
-                  Tu parte se registra como gasto. Las partes ajenas se añaden a Saldos como "te deben"
+                  {t.tx.splitNote}
                 </Text>
               </View>
             </View>
           )}
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Gasto fijo</Text>
+            <Text style={styles.switchLabel}>{t.tx.fixedExpense}</Text>
             <Switch
               value={isFixed}
               onValueChange={setIsFixed}
@@ -558,12 +558,12 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
             />
           </View>
 
-          <Label>Notas</Label>
+          <Label>{t.tx.notes}</Label>
           <TextInput
             style={[styles.input, styles.multiline]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Opcional"
+            placeholder={t.common.optional}
             placeholderTextColor={Colors.textMuted}
             multiline
             numberOfLines={3}

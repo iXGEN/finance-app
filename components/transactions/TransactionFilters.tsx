@@ -26,6 +26,7 @@ interface Props {
 }
 
 export function TransactionFilters({ filters, onChange, categories }: Props) {
+  const t = useT();
   const active = hasActiveFilters(filters);
 
   const toggleCategory = (cat: string) =>
@@ -39,7 +40,7 @@ export function TransactionFilters({ filters, onChange, categories }: Props) {
           style={styles.searchInput}
           value={filters.text}
           onChangeText={(text) => onChange({ ...filters, text })}
-          placeholder="Buscar gasto, monto o persona…"
+          placeholder={t.tx.searchPlaceholder}
           placeholderTextColor={Colors.textMuted}
           returnKeyType="search"
         />
@@ -59,7 +60,7 @@ export function TransactionFilters({ filters, onChange, categories }: Props) {
         {active && (
           <TouchableOpacity style={[styles.chip, styles.clearChip]} onPress={() => onChange(EMPTY_FILTERS)}>
             <Ionicons name="close" size={13} color={Colors.danger} />
-            <Text style={[styles.chipText, { color: Colors.danger }]}>Limpiar</Text>
+            <Text style={[styles.chipText, { color: Colors.danger }]}>{t.tx.clear}</Text>
           </TouchableOpacity>
         )}
 
@@ -68,7 +69,7 @@ export function TransactionFilters({ filters, onChange, categories }: Props) {
           onPress={() => onChange({ ...filters, onlyFixed: !filters.onlyFixed })}
         >
           <Text style={[styles.chipText, filters.onlyFixed && { color: Colors.primary, fontWeight: '700' }]}>
-            Fijos
+            {t.tx.fixed}
           </Text>
         </TouchableOpacity>
 

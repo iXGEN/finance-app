@@ -6,6 +6,7 @@ import {
 import { BudgetSummaryItem } from '../../types';
 import { Colors } from '../../constants/colors';
 import { CATEGORY_COLORS } from '../../constants/categories';
+import { useT } from '../../services/i18n';
 
 interface Props {
   item: BudgetSummaryItem;
@@ -17,6 +18,7 @@ interface Props {
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
 export function BudgetCard({ item, month, onUpdate, onPressCategory }: Props) {
+  const t = useT();
   const [modalVisible, setModalVisible] = useState(false);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
@@ -69,7 +71,7 @@ export function BudgetCard({ item, month, onUpdate, onPressCategory }: Props) {
               <Text style={[styles.budget, item.budget === 0 && styles.budgetEmpty]}>
                 {item.budget > 0
                   ? `/ $${item.budget.toLocaleString('es-CL')}`
-                  : '+ presupuesto'}
+                  : t.budget.addBudget}
               </Text>
             </TouchableOpacity>
           </View>
@@ -90,8 +92,8 @@ export function BudgetCard({ item, month, onUpdate, onPressCategory }: Props) {
           <View style={styles.stats}>
             <Text style={styles.statText}>
               {over
-                ? `Excedido $${(item.spent - item.budget).toLocaleString('es-CL')}`
-                : `Disponible $${(item.budget - item.spent).toLocaleString('es-CL')}`}
+                ? t.budget.exceededAmount(`$${(item.spent - item.budget).toLocaleString('es-CL')}`)
+                : t.budget.availableAmount(`$${(item.budget - item.spent).toLocaleString('es-CL')}`)}
             </Text>
             <Text style={[styles.pctText, over && { color: Colors.danger }]}>
               {Math.round(pct * 100)}%
@@ -120,7 +122,7 @@ export function BudgetCard({ item, month, onUpdate, onPressCategory }: Props) {
               <Text style={styles.sheetTitle} numberOfLines={1}>{item.category}</Text>
             </View>
 
-            <Text style={styles.sheetLabel}>Presupuesto mensual (CLP)</Text>
+            <Text style={styles.sheetLabel}>{t.budget.monthlyBudgetCLP}</Text>
 
             <TextInput
               style={styles.sheetInput}
@@ -137,7 +139,7 @@ export function BudgetCard({ item, month, onUpdate, onPressCategory }: Props) {
 
             <View style={styles.sheetActions}>
               <TouchableOpacity style={styles.cancelAction} onPress={handleClose}>
-                <Text style={styles.cancelActionText}>Cancelar</Text>
+                <Text style={styles.cancelActionText}>{t.common.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveAction, saving && styles.saveActionDisabled]}
@@ -145,7 +147,7 @@ export function BudgetCard({ item, month, onUpdate, onPressCategory }: Props) {
                 disabled={saving}
               >
                 <Text style={styles.saveActionText}>
-                  {saving ? 'Guardando…' : 'Guardar'}
+                  {saving ? t.common.saving : t.common.save}
                 </Text>
               </TouchableOpacity>
             </View>
