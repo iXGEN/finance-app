@@ -39,6 +39,10 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
+          name="resumen"
+          options={{ title: 'Resumen', tabBarIcon: icon('pie-chart-outline') }}
+        />
+        <Tabs.Screen
           name="gastos"
           options={{ title: 'Gastos', tabBarIcon: icon('wallet-outline') }}
         />

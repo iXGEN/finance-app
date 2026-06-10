@@ -28,7 +28,7 @@ export default function LoginScreen() {
         if (error) throw error;
         Alert.alert('Cuenta creada', 'Revisa tu email para confirmar la cuenta.');
       }
-      router.replace('/(tabs)/gastos');
+      router.replace('/(tabs)/resumen');
     } catch (err: any) {
       Alert.alert('Error', err.message ?? String(err));
     } finally {
