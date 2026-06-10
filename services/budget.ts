@@ -27,6 +27,26 @@ export async function upsertBudget(month: string, category: string, budget: numb
   if (error) throw error;
 }
 
+/**
+ * Copies every budget from `fromMonth` into `toMonth`, skipping categories that
+ * already have a budget set in the target month. Returns how many were copied.
+ */
+export async function copyBudget(fromMonth: string, toMonth: string): Promise<number> {
+  const [fromConfigs, toConfigs] = await Promise.all([
+    getBudgetConfigs(fromMonth),
+    getBudgetConfigs(toMonth),
+  ]);
+  const taken = new Set(toConfigs.filter((c) => c.budget > 0).map((c) => c.category));
+
+  let copied = 0;
+  for (const c of fromConfigs) {
+    if (c.budget <= 0 || taken.has(c.category)) continue;
+    await upsertBudget(toMonth, c.category, c.budget);
+    copied++;
+  }
+  return copied;
+}
+
 export async function getBudgetSummary(month: string, userCategories: string[] = []): Promise<BudgetSummaryItem[]> {
   const [configs, spent] = await Promise.all([
     getBudgetConfigs(month),

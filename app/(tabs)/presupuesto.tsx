@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { MonthPicker } from '../../components/shared/MonthPicker';
 import { BudgetCard } from '../../components/budget/BudgetCard';
 import { useBudgetStore } from '../../store/budgetStore';
+import { getBudgetConfigs, copyBudget } from '../../services/budget';
+import { addMonths, formatMonthLong } from '../../services/dates';
 import { Colors } from '../../constants/colors';
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -11,6 +15,8 @@ const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 export default function BudgetScreen() {
   const { summary, loading, fetchSummary, upsertBudget } = useBudgetStore();
   const [month, setMonth] = useState(() => new Date().toISOString().substring(0, 7));
+  const [copyHint, setCopyHint] = useState<{ from: string; count: number } | null>(null);
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => { fetchSummary(month); }, [month]);
 
@@ -18,6 +24,36 @@ export default function BudgetScreen() {
   const totalBudget = summary.reduce((s, i) => s + i.budget, 0);
   const available = totalBudget - totalSpent;
   const over = totalBudget > 0 && totalSpent > totalBudget;
+
+  // Offer to copy last month's budget when this month has none configured yet.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (totalBudget > 0) { if (!cancelled) setCopyHint(null); return; }
+      const prev = addMonths(month, -1);
+      try {
+        const prevConfigs = await getBudgetConfigs(prev);
+        const withBudget = prevConfigs.filter((c) => c.budget > 0);
+        if (!cancelled) setCopyHint(withBudget.length ? { from: prev, count: withBudget.length } : null);
+      } catch {
+        if (!cancelled) setCopyHint(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [month, totalBudget]);
+
+  const handleCopyBudget = async () => {
+    if (!copyHint) return;
+    setCopying(true);
+    try {
+      await copyBudget(copyHint.from, month);
+      await fetchSummary(month);
+    } catch (e) {
+      Alert.alert('Error', String(e));
+    } finally {
+      setCopying(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -46,7 +82,20 @@ export default function BudgetScreen() {
         </View>
       )}
 
-      {loading ? (
+      {copyHint && totalBudget === 0 && (
+        <TouchableOpacity style={styles.copyBanner} onPress={handleCopyBudget} disabled={copying} activeOpacity={0.85}>
+          <Ionicons name="copy-outline" size={18} color={Colors.primary} />
+          <View style={styles.copyTextWrap}>
+            <Text style={styles.copyTitle}>Copiar presupuesto del mes anterior</Text>
+            <Text style={styles.copySub}>
+              {copyHint.count} categoría{copyHint.count === 1 ? '' : 's'} de {formatMonthLong(copyHint.from)}
+            </Text>
+          </View>
+          <Text style={styles.copyAction}>{copying ? '…' : 'Copiar'}</Text>
+        </TouchableOpacity>
+      )}
+
+      {loading && summary.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.primary} />
         </View>
@@ -54,8 +103,21 @@ export default function BudgetScreen() {
         <FlatList
           data={summary}
           keyExtractor={(i) => i.category}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={() => fetchSummary(month)}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
           renderItem={({ item }) => (
-            <BudgetCard item={item} month={month} onUpdate={upsertBudget} />
+            <BudgetCard
+              item={item}
+              month={month}
+              onUpdate={upsertBudget}
+              onPressCategory={(cat) => router.navigate(`/gastos?category=${encodeURIComponent(cat)}`)}
+            />
           )}
           ListEmptyComponent={
             <View style={styles.center}>
@@ -74,6 +136,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  copyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 12,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: Colors.primaryDim,
+    borderWidth: 1,
+    borderColor: Colors.primary + '55',
+    borderRadius: 12,
+  },
+  copyTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  copyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  copySub: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  copyAction: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.primary,
   },
   totals: {
     flexDirection: 'row',

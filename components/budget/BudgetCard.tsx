@@ -11,11 +11,12 @@ interface Props {
   item: BudgetSummaryItem;
   month: string;
   onUpdate: (month: string, category: string, budget: number) => Promise<void>;
+  onPressCategory?: (category: string) => void;
 }
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
-export function BudgetCard({ item, month, onUpdate }: Props) {
+export function BudgetCard({ item, month, onUpdate, onPressCategory }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
@@ -49,10 +50,17 @@ export function BudgetCard({ item, month, onUpdate }: Props) {
     <>
       <View style={[styles.card, !hasActivity && styles.cardDim]}>
         <View style={styles.row}>
-          <View style={[styles.dot, { backgroundColor: color }]} />
-          <Text style={[styles.name, !hasActivity && styles.nameDim]} numberOfLines={1}>
-            {item.category}
-          </Text>
+          <TouchableOpacity
+            style={styles.categoryTap}
+            onPress={() => onPressCategory?.(item.category)}
+            disabled={!onPressCategory}
+            activeOpacity={0.6}
+          >
+            <View style={[styles.dot, { backgroundColor: color }]} />
+            <Text style={[styles.name, !hasActivity && styles.nameDim]} numberOfLines={1}>
+              {item.category}
+            </Text>
+          </TouchableOpacity>
           <View style={styles.right}>
             <Text style={[styles.spent, over && styles.over, { fontFamily: MONO }]}>
               ${item.spent.toLocaleString('es-CL')}
@@ -160,6 +168,11 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryTap: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
