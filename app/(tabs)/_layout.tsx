@@ -27,6 +27,7 @@ export default function TabLayout() {
         screenOptions={{
           tabBarActiveTintColor: Colors.primary,
           tabBarInactiveTintColor: Colors.textMuted,
+          tabBarHideOnKeyboard: true,
           tabBarStyle: {
             backgroundColor: Colors.surface,
             borderTopColor: Colors.border,
@@ -41,11 +42,11 @@ export default function TabLayout() {
         }}
       >
         <Tabs.Screen
-          name="resumen"
+          name="summary"
           options={{ title: t.tabs.resumen, tabBarIcon: icon('pie-chart-outline') }}
         />
         <Tabs.Screen
-          name="gastos"
+          name="expenses"
           options={{ title: t.tabs.gastos, tabBarIcon: icon('wallet-outline') }}
         />
         <Tabs.Screen
@@ -53,15 +54,15 @@ export default function TabLayout() {
           options={{ title: t.tabs.chat, tabBarIcon: icon('chatbubbles-outline') }}
         />
         <Tabs.Screen
-          name="presupuesto"
+          name="budget"
           options={{ title: t.tabs.presupuesto, tabBarIcon: icon('stats-chart-outline') }}
         />
         <Tabs.Screen
-          name="deudas"
+          name="balances"
           options={{ title: t.tabs.saldos, tabBarIcon: icon('swap-horizontal-outline') }}
         />
         <Tabs.Screen
-          name="ajustes"
+          name="settings"
           options={{ title: t.tabs.ajustes, tabBarIcon: icon('settings-outline') }}
         />
       </Tabs>

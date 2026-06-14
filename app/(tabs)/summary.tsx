@@ -49,7 +49,7 @@ export default function ResumenScreen() {
   }, [load]);
 
   const goToCategory = (category: string) =>
-    router.navigate(`/gastos?category=${encodeURIComponent(category)}`);
+    router.navigate(`/expenses?category=${encodeURIComponent(category)}`);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -91,13 +91,13 @@ export default function ResumenScreen() {
               label={t.summary.owedToYou}
               value={clp(data.debtOwedToMe)}
               accent={Colors.success}
-              onPress={() => router.navigate('/deudas')}
+              onPress={() => router.navigate('/balances')}
             />
             <StatCard
               label={t.summary.youOwe}
               value={clp(data.debtIOwe)}
               accent={Colors.danger}
-              onPress={() => router.navigate('/deudas')}
+              onPress={() => router.navigate('/balances')}
             />
           </View>
 

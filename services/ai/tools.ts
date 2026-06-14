@@ -1,15 +1,18 @@
 import Groq from 'groq-sdk';
 import {
   addTransaction, getTransactions, getTransactionById, getSpentByCategory, getSpentByMonths,
-  updateTransaction, deleteTransaction,
+  updateTransaction, deleteTransaction, deleteTransactionsBulk,
 } from '../transactions';
 import { getBudgetSummary, upsertBudget } from '../budget';
 import { addDebt, getDebts, markDebtPaid, deleteDebt } from '../debts';
 import { TransactionInsert, SplitEntry, encodeSplit, parseSplit } from '../../types';
 import { useUserConfigStore } from '../../store/userConfigStore';
+import { useLocaleStore } from '../../store/localeStore';
+import type { Locale } from '../i18n';
 import { today, currentMonth, pastMonths, addMonths } from '../dates';
 import { copyBudget } from '../budget';
-import { carryOverFixedExpenses } from '../recurring';
+import { carryOverFixedExpenses, getFixedExpenses } from '../recurring';
+import { getMonthlyOverview } from '../insights';
 
 const DEBT_PAYMENT_METHOD = 'Deuda';
 
@@ -121,13 +124,29 @@ export const toolDefinitions: Groq.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_transactions',
-      description: 'Queries recorded expenses with optional filters by month and category. Also use this before delete_transaction or update_transaction to find the transaction ID.',
+      description: 'Queries recorded expenses with optional filters by month, category, free text and fixed-only. Also use this before delete_transaction or update_transaction to find the transaction ID.',
       parameters: {
         type: 'object',
         properties: {
           month: { type: 'string', description: 'Month in YYYY-MM format. Defaults to current month.' },
           category: { type: 'string', description: 'Filter by specific category.' },
+          query: { type: 'string', description: 'Free-text search across description, payment method, notes and amount (case-insensitive).' },
+          only_fixed: { type: 'boolean', description: 'When true, only return recurring fixed expenses (is_fixed).' },
           limit: { type: 'number', description: 'Maximum number of results to return.' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_fixed_expenses',
+      description: 'Lists the recurring fixed expenses (is_fixed) of a month and their combined monthly total. Use for questions like "what are my fixed expenses?" or "how much do my fixed costs add up to?".',
+      parameters: {
+        type: 'object',
+        properties: {
+          month: { type: 'string', description: 'Month in YYYY-MM format. Defaults to current month.' },
         },
         required: [],
       },
@@ -165,6 +184,22 @@ export const toolDefinitions: Groq.Chat.ChatCompletionTool[] = [
           id: { type: 'string', description: 'Transaction ID to delete.' },
         },
         required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_all_transactions',
+      description: 'Bulk-deletes many expenses in ONE permanent operation. Use this — never a long chain of delete_transaction calls — whenever the user wants to clear/delete several or all expenses. Scope it: a single month (month=YYYY-MM), a category, or the ENTIRE history (all_time=true). This is irreversible: ALWAYS confirm with the user first, and if they did not specify the scope, ask whether they mean the current month or all history before calling.',
+      parameters: {
+        type: 'object',
+        properties: {
+          month: { type: 'string', description: 'Limit deletion to this month (YYYY-MM).' },
+          category: { type: 'string', description: 'Limit deletion to this category. Can be combined with month.' },
+          all_time: { type: 'boolean', description: 'Set true to delete across every month. Required when neither month nor category is given.' },
+        },
+        required: [],
       },
     },
   },
@@ -261,6 +296,20 @@ export const toolDefinitions: Groq.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_month_overview',
+      description: 'Returns the full monthly dashboard in one call: total spent, total budget, spending vs the previous month, top categories, a 6-month trend, and the Saldos totals (owed to the user / owed by the user). Prefer this for broad questions like "how am I doing this month?" instead of calling several tools.',
+      parameters: {
+        type: 'object',
+        properties: {
+          month: { type: 'string', description: 'Month in YYYY-MM format. Defaults to current month.' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'add_debt',
       description: 'Records a standalone debt in Saldos. Positive amount = someone owes the user. Negative amount = the user owes someone.',
       parameters: {
@@ -320,6 +369,20 @@ export const toolDefinitions: Groq.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'settle_person',
+      description: 'Settles ALL pending balances with one person at once: marks every one of their pending Saldos as paid. Use when the user says they settled up / squared accounts with someone (e.g. "ya me pagó todo Pedro", "quedé a mano con Ana"). To remove a single entry use mark_debt_paid instead.',
+      parameters: {
+        type: 'object',
+        properties: {
+          person: { type: 'string', description: 'Name of the person to settle up with.' },
+        },
+        required: ['person'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_config',
       description: 'Returns the user\'s configured categories, payment methods, and known people. Use when the user asks what categories/methods exist.',
       parameters: { type: 'object', properties: {} },
@@ -329,15 +392,16 @@ export const toolDefinitions: Groq.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'manage_category',
-      description: 'Adds, removes, or renames an expense category. Renaming also re-points existing expenses and budgets to the new name.',
+      description: 'Adds, removes, renames, or reorders expense categories. Renaming also re-points existing expenses and budgets to the new name. Reordering changes the order they appear in the app.',
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['add', 'remove', 'rename'], description: 'What to do.' },
-          name: { type: 'string', description: 'The category to add, remove, or (for rename) the current name.' },
+          action: { type: 'string', enum: ['add', 'remove', 'rename', 'reorder'], description: 'What to do.' },
+          name: { type: 'string', description: 'The category to add, remove, or (for rename) the current name. Not needed for reorder.' },
           new_name: { type: 'string', description: 'The new name. Required only for rename.' },
+          order: { type: 'array', items: { type: 'string' }, description: 'For reorder: the categories in the desired order. Any omitted ones keep their place at the end.' },
         },
-        required: ['action', 'name'],
+        required: ['action'],
       },
     },
   },
@@ -345,15 +409,30 @@ export const toolDefinitions: Groq.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'manage_payment_method',
-      description: 'Adds, removes, or renames a payment method. Renaming also re-points existing expenses to the new name.',
+      description: 'Adds, removes, renames, or reorders payment methods. Renaming also re-points existing expenses to the new name. Reordering changes the order they appear in the app.',
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['add', 'remove', 'rename'], description: 'What to do.' },
-          name: { type: 'string', description: 'The payment method to add, remove, or (for rename) the current name.' },
+          action: { type: 'string', enum: ['add', 'remove', 'rename', 'reorder'], description: 'What to do.' },
+          name: { type: 'string', description: 'The payment method to add, remove, or (for rename) the current name. Not needed for reorder.' },
           new_name: { type: 'string', description: 'The new name. Required only for rename.' },
+          order: { type: 'array', items: { type: 'string' }, description: 'For reorder: the payment methods in the desired order. Any omitted ones keep their place at the end.' },
         },
-        required: ['action', 'name'],
+        required: ['action'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_language',
+      description: 'Switches the app language. Use when the user asks to change the language / cambiar el idioma. Spanish ("es") or English ("en").',
+      parameters: {
+        type: 'object',
+        properties: {
+          language: { type: 'string', enum: ['es', 'en'], description: 'Target language: "es" for Spanish, "en" for English.' },
+        },
+        required: ['language'],
       },
     },
   },
@@ -606,10 +685,37 @@ export async function executeTool(
 
   if (name === 'get_transactions') {
     const month = (args.month as string) || currentMonth();
-    const txs = await getTransactions(month, args.category as string | undefined);
-    const limited = args.limit ? txs.slice(0, args.limit as number) : txs.slice(0, 20);
+    let txs = await getTransactions(month, args.category as string | undefined);
+    if (args.only_fixed) txs = txs.filter((t) => t.is_fixed);
+    const q = (args.query as string)?.trim().toLowerCase();
+    if (q) {
+      txs = txs.filter((t) =>
+        [t.category, t.description, t.payment_method, t.notes, String(t.amount)]
+          .filter(Boolean).join(' ').toLowerCase().includes(q),
+      );
+    }
     const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    const limited = args.limit ? txs.slice(0, args.limit as number) : txs.slice(0, 20);
     return { transactions: limited, total, count: txs.length };
+  }
+
+  if (name === 'get_fixed_expenses') {
+    const month = (args.month as string) || currentMonth();
+    const fixed = await getFixedExpenses(month);
+    const total = fixed.reduce((s, t) => s + t.amount, 0);
+    return {
+      month,
+      count: fixed.length,
+      total,
+      expenses: fixed.map((t) => ({
+        id: t.id,
+        category: t.category,
+        description: t.description,
+        amount: t.amount,
+        payment_method: t.payment_method,
+        date: t.date,
+      })),
+    };
   }
 
   if (name === 'update_transaction') {
@@ -621,6 +727,30 @@ export async function executeTool(
   if (name === 'delete_transaction') {
     await deleteTransaction(args.id as string);
     return { success: true, message: 'Gasto eliminado correctamente.' };
+  }
+
+  if (name === 'delete_all_transactions') {
+    const month = (args.month as string) || undefined;
+    const category = (args.category as string) || undefined;
+    const allTime = (args.all_time as boolean) || false;
+    if (!month && !category && !allTime) {
+      return { error: 'Define el alcance: pasa month (YYYY-MM), category, o all_time=true para borrar todo el historial. No borres todo sin que el usuario lo confirme.' };
+    }
+    const deleted = await deleteTransactionsBulk({ month, category });
+    const scope = month && category
+      ? `de ${category} en ${month}`
+      : month
+        ? `de ${month}`
+        : category
+          ? `de ${category} (todo el historial)`
+          : 'de todo el historial';
+    return {
+      success: true,
+      deleted,
+      message: deleted > 0
+        ? `Eliminados ${deleted} gasto(s) ${scope}.`
+        : `No había gastos ${scope} para eliminar.`,
+    };
   }
 
   if (name === 'get_budget_summary') {
@@ -701,6 +831,11 @@ export async function executeTool(
     return { trend, category: category || 'all', months: numMonths };
   }
 
+  if (name === 'get_month_overview') {
+    const month = (args.month as string) || currentMonth();
+    return await getMonthlyOverview(month);
+  }
+
   if (name === 'add_debt') {
     const debt = await addDebt({
       person: args.person as string,
@@ -732,6 +867,26 @@ export async function executeTool(
     return { success: true, message: 'Saldo eliminado correctamente.' };
   }
 
+  if (name === 'settle_person') {
+    const person = (args.person as string)?.trim();
+    if (!person) return { error: 'Falta el nombre de la persona.' };
+    const debts = await getDebts(false);
+    const matches = debts.filter((d) => d.person.toLowerCase() === person.toLowerCase());
+    if (matches.length === 0) {
+      return { success: false, message: `No hay saldos pendientes con ${person}.` };
+    }
+    const net = matches.reduce((s, d) => s + d.amount, 0);
+    for (const d of matches) await markDebtPaid(d.id);
+    const realName = matches[0].person;
+    const direction = net > 0 ? 'a tu favor' : net < 0 ? 'en tu contra' : 'ya estaban a mano';
+    return {
+      success: true,
+      settled: matches.length,
+      net,
+      message: `Saldado con ${realName}: ${matches.length} saldo(s) marcados como pagados. Neto ${clp(Math.abs(net))} ${direction}.`,
+    };
+  }
+
   if (name === 'get_config') {
     const { categories, paymentMethods, persons } = useUserConfigStore.getState();
     return { categories, payment_methods: paymentMethods, persons };
@@ -745,8 +900,27 @@ export async function executeTool(
     const add = isCategory ? store.addCategory : store.addPaymentMethod;
     const remove = isCategory ? store.removeCategory : store.removePaymentMethod;
     const rename = isCategory ? store.renameCategory : store.renamePaymentMethod;
+    const reorder = isCategory ? store.reorderCategories : store.reorderPaymentMethods;
 
     const action = args.action as string;
+
+    if (action === 'reorder') {
+      const requested = Array.isArray(args.order) ? (args.order as unknown[]).map((o) => String(o)) : [];
+      if (requested.length === 0) return { error: 'Falta la lista "order" con el nuevo orden.' };
+      // Map the requested names back to the real (case-correct) items; append any the
+      // model omitted so nothing is dropped from the list.
+      const known = new Map(list.map((i) => [i.toLowerCase(), i]));
+      const seen = new Set<string>();
+      const newOrder: string[] = [];
+      for (const o of requested) {
+        const match = known.get(o.trim().toLowerCase());
+        if (match && !seen.has(match)) { newOrder.push(match); seen.add(match); }
+      }
+      for (const i of list) if (!seen.has(i)) newOrder.push(i);
+      await reorder(newOrder);
+      return { success: true, order: newOrder, message: `Orden de ${isCategory ? 'categorías' : 'métodos de pago'} actualizado.` };
+    }
+
     const name_ = (args.name as string)?.trim();
     if (!name_) return { error: `Falta el nombre del ${label}.` };
     const existing = list.find((i) => i.toLowerCase() === name_.toLowerCase());
@@ -772,6 +946,18 @@ export async function executeTool(
       return { success: true, message: `${isCategory ? 'Categoría' : 'Método'} "${existing}" renombrado a "${newName}".` };
     }
     return { error: `Acción desconocida: ${action}` };
+  }
+
+  if (name === 'set_language') {
+    const raw = String(args.language ?? '').trim().toLowerCase();
+    const code: Locale | null = raw.startsWith('es') ? 'es' : raw.startsWith('en') ? 'en' : null;
+    if (!code) return { error: 'Idioma no soportado. Usa "es" (Español) o "en" (English).' };
+    useLocaleStore.getState().setLocale(code);
+    return {
+      success: true,
+      language: code,
+      message: code === 'es' ? 'Idioma cambiado a Español.' : 'Language changed to English.',
+    };
   }
 
   return { error: `Unknown tool: ${name}` };

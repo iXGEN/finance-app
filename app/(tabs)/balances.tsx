@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   Modal, TextInput, Alert, ScrollView, ActivityIndicator, Platform, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDebtsStore } from '../../store/debtsStore';
 import { useUserConfigStore } from '../../store/userConfigStore';
@@ -79,7 +80,8 @@ export default function SaldosScreen() {
   // Pre-fill person when opening form from detail
   const [prefillPerson, setPrefillPerson] = useState<string | null>(null);
 
-  useEffect(() => { fetchDebts(); }, []);
+  // Refetch on focus so chat-driven Saldos changes appear without an app restart.
+  useFocusEffect(useCallback(() => { fetchDebts(); }, [fetchDebts]));
 
   // Group debts by person, sorted by |net| descending
   const personGroups = useMemo<PersonGroup[]>(() => {

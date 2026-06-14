@@ -6,6 +6,7 @@ import type { Session } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Colors } from '../constants/colors';
 
 export default function RootLayout() {
@@ -21,7 +22,7 @@ export default function RootLayout() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-        router.replace('/(tabs)/resumen');
+        router.replace('/(tabs)/summary');
       } else {
         router.replace('/(auth)/login');
       }
@@ -42,11 +43,13 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)/login" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <KeyboardProvider>
+        <StatusBar style="light" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)/login" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

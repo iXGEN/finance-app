@@ -85,6 +85,25 @@ export async function deleteTransaction(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Bulk-deletes the current user's expenses in a single query, optionally scoped to a
+ * month and/or category. With no scope it clears the user's entire history. Always
+ * filters by user_id (on top of RLS) so it can never touch another account's rows.
+ * Returns how many rows were removed.
+ */
+export async function deleteTransactionsBulk(opts: { month?: string; category?: string } = {}): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  let query = supabase.from('transactions').delete({ count: 'exact' }).eq('user_id', user.id);
+  if (opts.month) query = query.eq('month', opts.month);
+  if (opts.category) query = query.eq('category', opts.category);
+
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Re-points every expense from an old category/payment_method name to a new one. */
 async function migrateField(field: 'category' | 'payment_method', oldName: string, newName: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();

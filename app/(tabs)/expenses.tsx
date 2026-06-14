@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MonthPicker } from '../../components/shared/MonthPicker';
 import { TransactionList } from '../../components/transactions/TransactionList';
@@ -46,7 +46,9 @@ export default function ExpensesScreen() {
 
   const params = useLocalSearchParams<{ category?: string }>();
 
-  useEffect(() => { fetchTransactions(); }, []);
+  // Refetch whenever the tab regains focus, so chat-driven changes (or edits from other
+  // tabs) appear immediately instead of waiting for an app restart.
+  useFocusEffect(useCallback(() => { fetchTransactions(); }, [fetchTransactions]));
 
   // Drill-down: another screen can navigate here pre-filtered by category. Consume the
   // param into local state and clear it from the URL so the same jump can re-trigger.

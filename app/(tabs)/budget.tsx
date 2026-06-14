@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { FlatList, View, Text, StyleSheet, ActivityIndicator, Platform, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { MonthPicker } from '../../components/shared/MonthPicker';
 import { BudgetCard } from '../../components/budget/BudgetCard';
@@ -20,7 +20,8 @@ export default function BudgetScreen() {
   const [copyHint, setCopyHint] = useState<{ from: string; count: number } | null>(null);
   const [copying, setCopying] = useState(false);
 
-  useEffect(() => { fetchSummary(month); }, [month]);
+  // Refetch on focus and on month change, so chat/UI edits reflect without a restart.
+  useFocusEffect(useCallback(() => { fetchSummary(month); }, [month, fetchSummary]));
 
   const totalSpent = summary.reduce((s, i) => s + i.spent, 0);
   const totalBudget = summary.reduce((s, i) => s + i.budget, 0);
@@ -118,7 +119,7 @@ export default function BudgetScreen() {
               item={item}
               month={month}
               onUpdate={upsertBudget}
-              onPressCategory={(cat) => router.navigate(`/gastos?category=${encodeURIComponent(cat)}`)}
+              onPressCategory={(cat) => router.navigate(`/expenses?category=${encodeURIComponent(cat)}`)}
             />
           )}
           ListEmptyComponent={

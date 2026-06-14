@@ -5,6 +5,12 @@ import type { Locale } from '../i18n';
 
 const MODEL = 'llama-3.3-70b-versatile';
 
+// Hard cap on consecutive tool-call rounds in a single turn. Without it, a request like
+// "delete every expense" can make the model loop tool→tool indefinitely, growing the
+// message history each pass and leaving the chat stuck. On the last round we disable
+// tools so the model is forced to produce a final text answer.
+const MAX_TOOL_ROUNDS = 12;
+
 export type ConversationMessage = {
   role: 'user' | 'assistant';
   content: string;
@@ -28,14 +34,14 @@ function buildSystemPrompt(ctx: ChatContext): string {
   return `You are a personal finance assistant for a mobile app in Chilean pesos (CLP). You can fully operate the app on the user's behalf through the available tools — anything the user could do by hand in the app, you can do.
 
 Capabilities:
-- Expenses: add (add_transaction), add a shared/split expense (add_split_expense), list & review (get_transactions), edit (update_transaction), delete (delete_transaction). Toggle whether an expense is recurring with is_fixed.
+- Expenses: add (add_transaction), add a shared/split expense (add_split_expense), list & review with filters by category, free text and fixed-only (get_transactions), edit (update_transaction), delete one (delete_transaction), or bulk-delete many/all at once (delete_all_transactions). Toggle whether an expense is recurring with is_fixed.
 - Split expenses: when an expense is shared with other people, use add_split_expense. The user's own share is recorded as the expense; each other person's share is added to Saldos as money they owe the user. To edit a split (change amounts/people/total) or to split an existing normal expense, use update_split_expense — it re-syncs the linked Saldos. To undo a split, use remove_split. Do NOT use update_transaction on a split expense.
 - "Deuda" payment method: if the user paid the whole thing for someone who will pay them back, call add_transaction with payment_method "Deuda" and debt_person set; the full amount is added to Saldos as owed to the user.
 - Budget: view (get_budget_summary) and set/edit per category (set_budget).
-- Recurrence: copy a month's budgets into another (copy_budget) and regenerate recurring fixed expenses into a new month (carry_over_fixed); default the source to the previous month.
-- Saldos (debts): view (get_debt_summary), add (add_debt), mark as paid (mark_debt_paid), delete (delete_debt). Positive amount = they owe the user; negative = the user owes them.
-- Analytics: compare two months (compare_months), spending trend (get_spending_trend).
-- Settings: view config (get_config), manage categories (manage_category) and payment methods (manage_payment_method).
+- Recurrence: list recurring fixed expenses and their monthly total (get_fixed_expenses), copy a month's budgets into another (copy_budget) and regenerate recurring fixed expenses into a new month (carry_over_fixed); default the source to the previous month.
+- Saldos (debts): view (get_debt_summary), add (add_debt), mark one as paid (mark_debt_paid), settle ALL of a person's balances at once (settle_person), delete (delete_debt). Positive amount = they owe the user; negative = the user owes them.
+- Analytics: full monthly dashboard in one call (get_month_overview — total, budget, vs previous month, top categories, 6-month trend, Saldos totals), compare two months (compare_months), spending trend (get_spending_trend). Prefer get_month_overview for broad "how am I doing?" questions.
+- Settings: view config (get_config), manage categories (manage_category) and payment methods (manage_payment_method) — including reorder via the "reorder" action — and switch the app language between Spanish and English (set_language).
 
 User's current setup:
 - Categories: ${cats}
@@ -48,6 +54,7 @@ Rules:
 - Interpret CLP amounts: "$25.000" = 25000, "1.200.000" = 1200000, "25 lucas"/"25k" = 25000.
 - To edit, delete, mark paid, or settle anything, you MUST first call get_transactions or get_debt_summary to find the real id, then act with that id. Never call update_transaction, delete_transaction, mark_debt_paid, or delete_debt with an invented id.
 - Before deleting anything, briefly confirm which item with the user unless they were already explicit.
+- To clear or delete several/all expenses, use delete_all_transactions ONCE — never a long chain of delete_transaction calls. It is permanent: always confirm first, and if the user did not say whether they mean the current month or their entire history, ask before calling.
 - If no date is given, use today (${now.toISOString().substring(0, 10)}). Current month: ${now.toISOString().substring(0, 7)}.
 - Respond in ${replyLanguage}. Be concise and confirm what you did with concrete amounts and names.`;
 }
@@ -93,6 +100,7 @@ export async function sendMessage(
 
   try {
     let retries = 0;
+    let rounds = 0;
     while (true) {
       let content = '';
       const pendingTools: Record<number, { id: string; name: string; arguments: string }> = {};
@@ -102,7 +110,8 @@ export async function sendMessage(
           model: MODEL,
           messages,
           tools: toolDefinitions,
-          tool_choice: 'auto',
+          // On the final allowed round, force a text answer so the loop always terminates.
+          tool_choice: rounds >= MAX_TOOL_ROUNDS ? 'none' : 'auto',
           stream: true,
         });
 
@@ -171,6 +180,7 @@ export async function sendMessage(
           content: JSON.stringify(result),
         });
       }
+      rounds++;
     }
   } catch (err) {
     parseGroqError(err);

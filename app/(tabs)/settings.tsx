@@ -1,20 +1,41 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator,
+  Alert, ActivityIndicator, LogBox,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DraggableFlatList, {
-  RenderItemParams,
-  ScaleDecorator,
-  NestableScrollContainer,
-  NestableDraggableFlatList,
-} from 'react-native-draggable-flatlist';
+import {
+  ScrollViewContainer,
+  NestedReorderableList,
+  useReorderableDrag,
+  useIsActive,
+  reorderItems,
+  ReorderableListReorderEvent,
+  ReorderableListRenderItemInfo,
+} from 'react-native-reorderable-list';
 import { Colors } from '../../constants/colors';
 import { useUserConfigStore } from '../../store/userConfigStore';
 import { countTransactionsByField } from '../../services/transactions';
 import { useT, LOCALES } from '../../services/i18n';
 import { useLocaleStore } from '../../store/localeStore';
+
+// react-native-reorderable-list nests a FlatList inside ScrollViewContainer by design.
+// The lists use scrollable={false}, so windowing isn't actually broken — this RN warning
+// is a false positive (the library's own example suppresses it the same way).
+// LogBox.ignoreLogs hides the in-app overlay; it does NOT stop the underlying console.error
+// from reaching the Metro terminal, so we also filter that one specific message in dev.
+const NESTED_LIST_WARNING = 'VirtualizedLists should never be nested inside plain ScrollViews';
+LogBox.ignoreLogs([NESTED_LIST_WARNING]);
+
+if (__DEV__ && !(globalThis as { __nestedListWarnPatched?: boolean }).__nestedListWarnPatched) {
+  (globalThis as { __nestedListWarnPatched?: boolean }).__nestedListWarnPatched = true;
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].includes(NESTED_LIST_WARNING)) return;
+    originalError(...args);
+  };
+}
 
 interface EditingItem {
   original: string;
@@ -27,6 +48,63 @@ function DragHandle() {
       <View style={styles.dragLine} />
       <View style={styles.dragLine} />
       <View style={styles.dragLine} />
+    </View>
+  );
+}
+
+interface ConfigRowProps {
+  item: string;
+  isEditing: boolean;
+  editingValue: string;
+  onStartEdit: (item: string) => void;
+  onChangeEdit: (value: string) => void;
+  onSaveEdit: () => void;
+  onDelete: (item: string) => void;
+}
+
+function ConfigRow({
+  item, isEditing, editingValue,
+  onStartEdit, onChangeEdit, onSaveEdit, onDelete,
+}: ConfigRowProps) {
+  // Drag is triggered only from the left handle; the rest of the row stays free
+  // for the parent scroll. Edit/delete are explicit buttons on the right.
+  const drag = useReorderableDrag();
+  const isActive = useIsActive();
+
+  return (
+    <View style={[styles.row, isActive && styles.rowActive]}>
+      <TouchableOpacity onPressIn={drag} style={styles.dragHandleWrap}>
+        <DragHandle />
+      </TouchableOpacity>
+
+      {isEditing ? (
+        <>
+          <TextInput
+            style={styles.editInput}
+            value={editingValue}
+            onChangeText={onChangeEdit}
+            autoFocus
+            onSubmitEditing={onSaveEdit}
+            returnKeyType="done"
+            placeholderTextColor={Colors.textMuted}
+          />
+          <TouchableOpacity onPress={onSaveEdit} hitSlop={8} style={styles.confirmSmall}>
+            <Text style={styles.confirmSmallText}>✓</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <View style={styles.itemLabelWrap}>
+            <Text style={styles.itemText}>{item}</Text>
+          </View>
+          <TouchableOpacity onPress={() => onStartEdit(item)} hitSlop={8} style={styles.editWrap}>
+            <Ionicons name="pencil" size={15} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onDelete(item)} hitSlop={8} style={styles.deleteWrap}>
+            <Text style={styles.deleteBtn}>✕</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 }
@@ -132,89 +210,29 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const renderCategoryItem = ({ item, drag, isActive }: RenderItemParams<string>) => {
-    const isEditing = editingCategory?.original === item;
-    return (
-      <ScaleDecorator>
-        <View style={[styles.row, isActive && styles.rowActive]}>
-          <TouchableOpacity onPressIn={drag} style={styles.dragHandleWrap}>
-            <DragHandle />
-          </TouchableOpacity>
+  const renderCategoryItem = ({ item }: ReorderableListRenderItemInfo<string>) => (
+    <ConfigRow
+      item={item}
+      isEditing={editingCategory?.original === item}
+      editingValue={editingCategory?.original === item ? editingCategory.value : ''}
+      onStartEdit={(it) => setEditingCat({ original: it, value: it })}
+      onChangeEdit={(v) => setEditingCat({ original: item, value: v })}
+      onSaveEdit={handleSaveRenameCategory}
+      onDelete={handleRemoveCategory}
+    />
+  );
 
-          {isEditing ? (
-            <TextInput
-              style={styles.editInput}
-              value={editingCategory.value}
-              onChangeText={(v) => setEditingCat({ original: item, value: v })}
-              autoFocus
-              onSubmitEditing={handleSaveRenameCategory}
-              returnKeyType="done"
-              placeholderTextColor={Colors.textMuted}
-            />
-          ) : (
-            <TouchableOpacity
-              style={styles.itemLabelWrap}
-              onPress={() => setEditingCat({ original: item, value: item })}
-            >
-              <Text style={styles.itemText}>{item}</Text>
-            </TouchableOpacity>
-          )}
-
-          {isEditing ? (
-            <TouchableOpacity onPress={handleSaveRenameCategory} style={styles.confirmSmall}>
-              <Text style={styles.confirmSmallText}>✓</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => handleRemoveCategory(item)} hitSlop={8} style={styles.deleteWrap}>
-              <Text style={styles.deleteBtn}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScaleDecorator>
-    );
-  };
-
-  const renderPaymentItem = ({ item, drag, isActive }: RenderItemParams<string>) => {
-    const isEditing = editingPayment?.original === item;
-    return (
-      <ScaleDecorator>
-        <View style={[styles.row, isActive && styles.rowActive]}>
-          <TouchableOpacity onPressIn={drag} style={styles.dragHandleWrap}>
-            <DragHandle />
-          </TouchableOpacity>
-
-          {isEditing ? (
-            <TextInput
-              style={styles.editInput}
-              value={editingPayment.value}
-              onChangeText={(v) => setEditingPay({ original: item, value: v })}
-              autoFocus
-              onSubmitEditing={handleSaveRenamePayment}
-              returnKeyType="done"
-              placeholderTextColor={Colors.textMuted}
-            />
-          ) : (
-            <TouchableOpacity
-              style={styles.itemLabelWrap}
-              onPress={() => setEditingPay({ original: item, value: item })}
-            >
-              <Text style={styles.itemText}>{item}</Text>
-            </TouchableOpacity>
-          )}
-
-          {isEditing ? (
-            <TouchableOpacity onPress={handleSaveRenamePayment} style={styles.confirmSmall}>
-              <Text style={styles.confirmSmallText}>✓</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => handleRemovePayment(item)} hitSlop={8} style={styles.deleteWrap}>
-              <Text style={styles.deleteBtn}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScaleDecorator>
-    );
-  };
+  const renderPaymentItem = ({ item }: ReorderableListRenderItemInfo<string>) => (
+    <ConfigRow
+      item={item}
+      isEditing={editingPayment?.original === item}
+      editingValue={editingPayment?.original === item ? editingPayment.value : ''}
+      onStartEdit={(it) => setEditingPay({ original: it, value: it })}
+      onChangeEdit={(v) => setEditingPay({ original: item, value: v })}
+      onSaveEdit={handleSaveRenamePayment}
+      onDelete={handleRemovePayment}
+    />
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -222,7 +240,7 @@ export default function SettingsScreen() {
         <Text style={styles.headerTitle}>{t.settings.title}</Text>
       </View>
 
-      <NestableScrollContainer contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollViewContainer style={styles.scroll} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={[styles.sectionTitle, { marginTop: 4 }]}>{t.settings.language}</Text>
         <View style={styles.section}>
           <View style={styles.langRow}>
@@ -245,12 +263,14 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>{t.settings.categories}</Text>
         <View style={styles.section}>
-          <NestableDraggableFlatList
+          <NestedReorderableList
             data={categories}
             keyExtractor={(item) => item}
-            onDragEnd={({ data }) => reorderCategories(data)}
+            onReorder={({ from, to }: ReorderableListReorderEvent) =>
+              reorderCategories(reorderItems(categories, from, to))
+            }
             renderItem={renderCategoryItem}
-            activationDistance={10}
+            scrollable={false}
           />
           {addingCategory ? (
             <View style={styles.addRow}>
@@ -282,12 +302,14 @@ export default function SettingsScreen() {
 
         <Text style={styles.sectionTitle}>{t.settings.paymentMethods}</Text>
         <View style={styles.section}>
-          <NestableDraggableFlatList
+          <NestedReorderableList
             data={paymentMethods}
             keyExtractor={(item) => item}
-            onDragEnd={({ data }) => reorderPaymentMethods(data)}
+            onReorder={({ from, to }: ReorderableListReorderEvent) =>
+              reorderPaymentMethods(reorderItems(paymentMethods, from, to))
+            }
             renderItem={renderPaymentItem}
-            activationDistance={10}
+            scrollable={false}
           />
           {addingPayment ? (
             <View style={styles.addRow}>
@@ -318,7 +340,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={{ height: 40 }} />
-      </NestableScrollContainer>
+      </ScrollViewContainer>
     </SafeAreaView>
   );
 }
@@ -340,6 +362,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: 0.2,
+  },
+  scroll: {
+    flex: 1,
   },
   body: {
     padding: 16,
@@ -451,6 +476,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: Colors.primary,
     fontWeight: '700',
+  },
+  editWrap: {
+    paddingHorizontal: 10,
   },
   deleteWrap: {
     paddingLeft: 8,

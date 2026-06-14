@@ -1,8 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, KeyboardAvoidingView, Platform, Text,
+  StyleSheet, Text,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChatMessage } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { Colors } from '../../constants/colors';
@@ -75,12 +76,6 @@ export function ChatInterface() {
         prev.map((m) => m.id === loadingId ? { ...m, content: response, isLoading: false } : m),
       );
 
-      await Promise.all([
-        refreshTransactions(),
-        fetchBudget(selectedMonth),
-        fetchDebts(),
-        fetchConfig(),
-      ]);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : t.chat.unexpectedError;
       setMessages((prev) =>
@@ -91,6 +86,14 @@ export function ChatInterface() {
         ),
       );
     } finally {
+      // Always sync the stores with the DB — even if the model threw *after* already
+      // performing tool writes — so screens never stay stale until an app restart.
+      await Promise.all([
+        refreshTransactions(),
+        fetchBudget(selectedMonth),
+        fetchDebts(),
+        fetchConfig(),
+      ]).catch(() => {});
       setLoading(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
@@ -119,8 +122,7 @@ export function ChatInterface() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
+      behavior="padding"
     >
       <FlatList
         ref={listRef}
