@@ -23,8 +23,16 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@sentry/react-native"
     ],
-    "scheme": "finance-app"
+    "scheme": "finance-app",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c6d688c3-ef36-4dbf-92f0-368366ebe410"
+      }
+    },
+    "owner": "ixgen"
   }
 }

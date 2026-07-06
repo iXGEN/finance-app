@@ -2,10 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../services/supabase';
+import { initSentry } from '../services/sentry';
 import { View, ActivityIndicator } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { Colors } from '../constants/colors';
+
+// Initialize Sentry as early as possible so it captures any errors during bootstrap.
+initSentry();
 
 export default function RootLayout() {
   const [loading, setLoading] = useState(true);
