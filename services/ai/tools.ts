@@ -3,14 +3,13 @@ import {
   addTransaction, getTransactions, getTransactionById, getSpentByCategory, getSpentByMonths,
   updateTransaction, deleteTransaction, deleteTransactionsBulk,
 } from '../transactions';
-import { getBudgetSummary, upsertBudget } from '../budget';
+import { getBudgetSummary, upsertBudget, copyBudget } from '../budget';
 import { addDebt, getDebts, markDebtPaid, deleteDebt } from '../debts';
 import { TransactionInsert, SplitEntry, encodeSplit, parseSplit } from '../../types';
 import { useUserConfigStore } from '../../store/userConfigStore';
 import { useLocaleStore } from '../../store/localeStore';
 import type { Locale } from '../i18n';
 import { today, currentMonth, pastMonths, addMonths } from '../dates';
-import { copyBudget } from '../budget';
 import { carryOverFixedExpenses, getFixedExpenses } from '../recurring';
 import { getMonthlyOverview } from '../insights';
 

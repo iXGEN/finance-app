@@ -184,15 +184,18 @@ export function TransactionForm({ visible, onClose, onSubmit, initialValues }: P
       setSplitEnabled(false);
       setSplitParticipants([{ name: 'Yo', amount: '' }]);
     }
+    // The form must reset only when the modal opens; re-running on config/initialValues
+    // changes would wipe what the user is typing mid-edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   useEffect(() => {
     if (categories.length && !category) setCategory(categories[0]);
-  }, [categories]);
+  }, [categories, category]);
 
   useEffect(() => {
     if (paymentMethods.length && !paymentMethod) setPaymentMethod(paymentMethods[0]);
-  }, [paymentMethods]);
+  }, [paymentMethods, paymentMethod]);
 
   const splitEqually = () => {
     if (!totalAmount || splitParticipants.length < 2) return;

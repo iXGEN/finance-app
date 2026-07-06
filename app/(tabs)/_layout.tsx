@@ -9,16 +9,16 @@ import { useT } from '../../services/i18n';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function icon(name: IoniconName) {
-  return ({ color, size }: { color: string; size: number }) => (
-    <Ionicons name={name} size={size} color={color} />
-  );
+  return function TabIcon({ color, size }: { color: string; size: number }) {
+    return <Ionicons name={name} size={size} color={color} />;
+  };
 }
 
 export default function TabLayout() {
   const t = useT();
   const fetchConfig = useUserConfigStore((s) => s.fetch);
 
-  useEffect(() => { fetchConfig(); }, []);
+  useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
   return (
     <>

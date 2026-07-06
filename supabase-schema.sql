@@ -60,3 +60,8 @@ CREATE POLICY "Users manage own budget_config" ON budget_config
 
 CREATE POLICY "Users manage own debts" ON debts
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- Indexes (see docs/migrations/001_indexes.sql)
+CREATE INDEX IF NOT EXISTS idx_tx_user_month ON transactions (user_id, month);
+CREATE INDEX IF NOT EXISTS idx_tx_user_category ON transactions (user_id, category);
+CREATE INDEX IF NOT EXISTS idx_debts_user_paid ON debts (user_id, paid);

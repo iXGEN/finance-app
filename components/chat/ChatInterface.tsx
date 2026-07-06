@@ -7,7 +7,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ChatMessage } from '../../types';
 import { MessageBubble } from './MessageBubble';
 import { Colors } from '../../constants/colors';
-import { sendMessage, ConversationMessage } from '../../services/ai/gemini';
+import { sendMessage, ConversationMessage } from '../../services/ai/chat';
 import { useTransactionsStore } from '../../store/transactionsStore';
 import { useBudgetStore } from '../../store/budgetStore';
 import { useDebtsStore } from '../../store/debtsStore';
@@ -50,7 +50,7 @@ export function ChatInterface() {
         ? [{ ...prev[0], content: t.chat.welcome }]
         : prev,
     );
-  }, [locale]);
+  }, [t.chat.welcome]);
 
   const history: ConversationMessage[] = messages
     .filter((m) => !m.isLoading && !m.isError)

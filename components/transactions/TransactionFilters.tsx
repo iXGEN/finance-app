@@ -6,18 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { CATEGORY_COLORS } from '../../constants/categories';
 import { useT } from '../../services/i18n';
+import {
+  TransactionFilterState, EMPTY_FILTERS, hasActiveFilters,
+} from '../../services/filters';
 
-export interface TransactionFilterState {
-  text: string;
-  category: string | null;
-  onlyFixed: boolean;
-}
-
-export const EMPTY_FILTERS: TransactionFilterState = { text: '', category: null, onlyFixed: false };
-
-export function hasActiveFilters(f: TransactionFilterState): boolean {
-  return f.text.trim() !== '' || f.category !== null || f.onlyFixed;
-}
+// Re-exported so existing consumers keep a single import point for the filter UI + state.
+export { EMPTY_FILTERS, hasActiveFilters };
+export type { TransactionFilterState };
 
 interface Props {
   filters: TransactionFilterState;

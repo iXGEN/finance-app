@@ -11,14 +11,11 @@ import { CategoryBars } from '../../components/insights/CategoryBars';
 import { StatCard } from '../../components/insights/StatCard';
 import { getMonthlyOverview, MonthlyOverview } from '../../services/insights';
 import { currentMonth } from '../../services/dates';
+import { formatCLP as clp } from '../../services/currency';
 import { useT } from '../../services/i18n';
 import { Colors } from '../../constants/colors';
 
 const MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
-
-function clp(n: number): string {
-  return `$${Math.round(n).toLocaleString('es-CL')}`;
-}
 
 export default function ResumenScreen() {
   const t = useT();

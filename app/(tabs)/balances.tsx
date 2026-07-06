@@ -77,9 +77,6 @@ export default function SaldosScreen() {
 
   // Detail modal
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
-  // Pre-fill person when opening form from detail
-  const [prefillPerson, setPrefillPerson] = useState<string | null>(null);
-
   // Refetch on focus so chat-driven Saldos changes appear without an app restart.
   useFocusEffect(useCallback(() => { fetchDebts(); }, [fetchDebts]));
 
@@ -104,7 +101,6 @@ export default function SaldosScreen() {
   const net = owedToMe - iOwe;
 
   const openForm = (prefill?: string) => {
-    setPrefillPerson(prefill ?? null);
     setPersonInput(prefill ?? '');
     setAmount('');
     setType('they-owe');

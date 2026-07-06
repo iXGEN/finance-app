@@ -6,9 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { MonthPicker } from '../../components/shared/MonthPicker';
 import { TransactionList } from '../../components/transactions/TransactionList';
 import { TransactionForm } from '../../components/transactions/TransactionForm';
+import { TransactionFilters } from '../../components/transactions/TransactionFilters';
 import {
-  TransactionFilters, TransactionFilterState, EMPTY_FILTERS, hasActiveFilters,
-} from '../../components/transactions/TransactionFilters';
+  TransactionFilterState, EMPTY_FILTERS, hasActiveFilters, applyFilters,
+} from '../../services/filters';
 import { useTransactionsStore } from '../../store/transactionsStore';
 import { useUserConfigStore } from '../../store/userConfigStore';
 import { getFixedExpenses, carryOverFixedExpenses } from '../../services/recurring';
@@ -16,20 +17,6 @@ import { currentMonth, addMonths, formatMonthLong } from '../../services/dates';
 import { useT } from '../../services/i18n';
 import { Colors } from '../../constants/colors';
 import { Transaction } from '../../types';
-
-function applyFilters(txs: Transaction[], f: TransactionFilterState): Transaction[] {
-  const q = f.text.trim().toLowerCase();
-  return txs.filter((t) => {
-    if (f.category && t.category !== f.category) return false;
-    if (f.onlyFixed && !t.is_fixed) return false;
-    if (q) {
-      const hay = [t.category, t.description, t.payment_method, t.notes, String(t.amount)]
-        .filter(Boolean).join(' ').toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
-}
 
 export default function ExpensesScreen() {
   const t = useT();
